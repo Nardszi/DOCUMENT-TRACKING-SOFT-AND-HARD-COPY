@@ -110,6 +110,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { unreadCount } = useNotifications()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false)
   const [loggingOut, setLoggingOut] = React.useState(false)
 
@@ -210,38 +211,120 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 pb-20 lg:pb-0 min-w-0">
+      <main className="flex-1 pb-0 min-w-0 pt-14 lg:pt-0">
         {children}
       </main>
 
-      {/* Mobile bottom tab bar */}
-      <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 bg-stone-900/95 dark:bg-[#0f0e0d]/95 backdrop-blur-sm border-t border-stone-800 flex z-20"
-        aria-label="Mobile navigation"
-      >
-        {visibleItems.slice(0, 5).map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] font-medium focus:outline-none transition-colors ${
-                isActive ? 'text-amber-400' : 'text-stone-500 hover:text-stone-300'
-              }`
-            }
-          >
-            <span className="relative">
-              {item.icon}
-              {item.label === 'Notifications' && unreadCount > 0 && (
-                <span className="absolute -top-1 -right-2 min-w-[14px] h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+      {/* ── Mobile top header bar ── */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-stone-900/95 dark:bg-[#0f0e0d]/95 backdrop-blur-sm border-b border-stone-800">
+        <div className="flex items-center justify-between px-4 h-14">
+          {/* Logo + name */}
+          <div className="flex items-center gap-2.5">
+            <img src="/noneco-logo.png" alt="NONECO" className="w-7 h-7 object-contain" />
+            <span className="text-sm font-bold text-amber-400 tracking-wide">NONECO</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Notification bell */}
+            <NavLink
+              to="/notifications"
+              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
+              className="relative p-2 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
-            </span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+            </NavLink>
+
+            {/* Hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(v => !v)}
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
+              className="p-2 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Mobile drawer menu ── */}
+      {mobileMenuOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="lg:hidden fixed inset-0 z-20 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          {/* Drawer */}
+          <div className="lg:hidden fixed top-14 left-0 right-0 z-20 bg-stone-900 dark:bg-[#0f0e0d] border-b border-stone-800 shadow-2xl animate-slide-up">
+            <nav className="px-3 py-3 space-y-0.5" aria-label="Mobile navigation">
+              {visibleItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                        : 'text-stone-400 hover:bg-stone-800 hover:text-stone-100 border border-transparent'
+                    }`
+                  }
+                >
+                  <span className="flex-shrink-0">{item.icon}</span>
+                  <span className="flex-1">{item.label}</span>
+                  {item.label === 'Notifications' && <UnreadBadge count={unreadCount} />}
+                </NavLink>
+              ))}
+            </nav>
+
+            {/* User + actions */}
+            <div className="px-3 py-3 border-t border-stone-800 space-y-2">
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+              >
+                <span>{theme === 'dark' ? Icons.sun : Icons.moon}</span>
+                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              </button>
+
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-stone-800/50 border border-stone-700/40">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-amber-400">{user?.fullName?.charAt(0)?.toUpperCase() ?? '?'}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-stone-200 truncate">{user?.fullName}</p>
+                  <p className="text-[10px] text-stone-500">{roleLabel(user?.role)}</p>
+                </div>
+                <button
+                  onClick={() => { setMobileMenuOpen(false); handleLogoutClick() }}
+                  className="p-1.5 rounded-md text-stone-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  aria-label="Sign out"
+                >
+                  {Icons.logout}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Logout confirmation dialog ── */}
       {showLogoutConfirm && (

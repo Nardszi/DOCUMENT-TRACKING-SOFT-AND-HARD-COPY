@@ -68,6 +68,9 @@ export default function DocumentDetailPage() {
   const [completing, setCompleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showRecallConfirm, setShowRecallConfirm] = useState(false)
+  const [recallReason, setRecallReason] = useState('')
+  const [recalling, setRecalling] = useState(false)
 
   function refetchDoc() {
     if (!id) return
@@ -99,6 +102,29 @@ export default function DocumentDetailPage() {
     } catch {
       setDeleting(false)
       setShowDeleteConfirm(false)
+    }
+  }
+
+  async function handleRecall() {
+    if (!recallReason.trim()) return
+    setRecalling(true)
+    try {
+      const res = await fetch(`/api/documents/${id}/recall`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: recallReason.trim() }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error?.message || 'Failed to recall document.')
+      }
+      setShowRecallConfirm(false)
+      setRecallReason('')
+      refetchDoc()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to recall document.')
+    } finally {
+      setRecalling(false)
     }
   }  useEffect(() => {
     if (!id) return
@@ -136,6 +162,10 @@ export default function DocumentDetailPage() {
   const isCompleted = doc.status === 'completed'
   const canMarkComplete = user?.role === 'department_head' || user?.role === 'admin'
   const canDelete = user?.role === 'admin'
+  // Can recall if: originating dept user (or admin), doc is not completed, and doc is not already in originating dept
+  const canRecall = !isCompleted
+    && doc.current_department.id !== doc.originating_department.id
+    && (user?.role === 'admin' || user?.departmentId === String(doc.originating_department.id))
 
   return (
     <>
@@ -206,6 +236,12 @@ export default function DocumentDetailPage() {
             <button disabled={isCompleted || completing} onClick={() => setShowCompleteConfirm(true)}
               className="min-h-[40px] px-4 py-2 rounded-xl bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {completing ? 'Completing…' : 'Mark Complete'}
+            </button>
+          )}
+          {canRecall && (
+            <button onClick={() => setShowRecallConfirm(true)} disabled={recalling}
+              className="min-h-[40px] px-4 py-2 rounded-xl bg-violet-600 text-sm font-medium text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              Recall
             </button>
           )}
         </div>
@@ -307,6 +343,60 @@ export default function DocumentDetailPage() {
       <ConfirmDialog title="Delete Document"
         message={`Permanently delete "${doc.title}"? This will remove all attachments, comments, and tracking history. This cannot be undone.`}
         confirmLabel="Delete Document" onConfirm={handleDelete} onCancel={() => setShowDeleteConfirm(false)} danger />
+    )}
+
+    {/* ── Recall modal ── */}
+    {showRecallConfirm && (
+      <div role="dialog" aria-modal="true" aria-labelledby="recall-modal-title"
+        className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+          onClick={() => { setShowRecallConfirm(false); setRecallReason('') }} aria-hidden="true" />
+        <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-stone-800 border border-stone-100 dark:border-stone-700 shadow-2xl overflow-hidden animate-slide-up">
+          {/* Header */}
+          <div className="bg-violet-600 px-6 py-4">
+            <h2 id="recall-modal-title" className="text-base font-bold text-white">Recall Document</h2>
+            <p className="text-xs text-violet-200 mt-0.5">Pull this document back to your department</p>
+          </div>
+          {/* Guidance */}
+          <div className="mx-6 mt-5 flex gap-3 rounded-xl bg-violet-50 border border-violet-200 px-4 py-3 dark:bg-violet-900/20 dark:border-violet-800/40">
+            <svg className="w-4 h-4 text-violet-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="text-xs text-violet-800 dark:text-violet-300 space-y-1">
+              <p><strong>When to Recall:</strong> Use this when you sent the document by mistake, or need to make corrections before it proceeds.</p>
+              <p>The document will be returned to your department and the receiving department will be notified.</p>
+            </div>
+          </div>
+          <div className="px-6 py-5 space-y-4">
+            <div>
+              <label htmlFor="recall-reason" className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5 dark:text-stone-400">
+                Reason for Recall <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="recall-reason"
+                rows={3}
+                value={recallReason}
+                onChange={e => setRecallReason(e.target.value)}
+                placeholder="e.g. Sent to wrong department. Please disregard."
+                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400 dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100 transition-all"
+              />
+            </div>
+            <div className="flex gap-2.5 pt-1 border-t border-stone-100 dark:border-stone-700">
+              <button type="button"
+                onClick={() => { setShowRecallConfirm(false); setRecallReason('') }}
+                className="flex-1 min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300 dark:border-stone-600 dark:bg-stone-700 dark:text-stone-200 dark:hover:bg-stone-600 transition-all">
+                Cancel
+              </button>
+              <button type="button"
+                onClick={handleRecall}
+                disabled={recalling || !recallReason.trim()}
+                className="flex-1 min-h-[40px] px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
+                {recalling ? 'Recalling…' : 'Recall Document'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     )}
     </>
   )

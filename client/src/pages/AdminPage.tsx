@@ -501,7 +501,46 @@ function UserManagement({ token }: UserManagementProps) {
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-stone-200 dark:border-stone-700">
+      {/* Mobile cards (hidden on md+) */}
+      <ul className="md:hidden divide-y divide-stone-100 dark:divide-stone-700/60 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 overflow-hidden mb-0">
+        {users.length === 0 && (
+          <li className="px-4 py-8 text-center text-sm text-stone-400 dark:text-stone-500">No users found.</li>
+        )}
+        {users.map((u) => (
+          <li key={u.id} className="px-4 py-3.5 hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-sm font-semibold text-stone-900 dark:text-stone-100">{u.full_name}</span>
+                  <StatusBadge active={u.is_active} />
+                </div>
+                <p className="text-xs text-stone-500 dark:text-stone-400 truncate">@{u.username} · {u.email}</p>
+                <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{ROLE_LABELS[u.role]} · {deptMap[u.department_id] ?? '—'}</p>
+              </div>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => { setEditUser(u); setModalOpen(true) }}
+                  className="min-h-[32px] px-3 py-1 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  disabled={!u.is_active}
+                  onClick={() => setDeactivateTarget(u)}
+                  className="min-h-[32px] px-3 py-1 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-40 disabled:cursor-not-allowed dark:border-red-800/40 dark:text-red-400 dark:hover:bg-red-900/20"
+                >
+                  Deactivate
+                </button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {/* Desktop table (hidden on mobile) */}
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-stone-200 dark:border-stone-700">
         <table className="min-w-full divide-y divide-stone-100 dark:divide-stone-700 text-sm">
           <thead className="bg-stone-50 dark:bg-stone-800">
             <tr>
@@ -996,7 +1035,38 @@ function TemplateManagement({ token }: TemplateManagementProps) {
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-stone-200 dark:border-stone-700">
+      {/* Mobile cards */}
+      <ul className="md:hidden divide-y divide-stone-100 dark:divide-stone-700/60 rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 overflow-hidden">
+        {templates.length === 0 && (
+          <li className="px-4 py-8 text-center text-sm text-stone-400 dark:text-stone-500">No templates found.</li>
+        )}
+        {templates.map((t) => (
+          <li key={t.id} className="px-4 py-3.5 hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-sm font-semibold text-stone-900 dark:text-stone-100">{t.name}</span>
+                  <StatusBadge active={t.is_active} />
+                </div>
+                <p className="text-xs text-stone-500 dark:text-stone-400">{catMap[t.category_id] ?? '—'} · <span className="capitalize">{t.priority}</span></p>
+              </div>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button type="button" onClick={() => { setEditTemplate(t); setModalOpen(true) }}
+                  className="min-h-[32px] px-3 py-1 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
+                  Edit
+                </button>
+                <button type="button" disabled={!t.is_active} onClick={() => setDeactivateTarget(t)}
+                  className="min-h-[32px] px-3 py-1 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-40 disabled:cursor-not-allowed dark:border-red-800/40 dark:text-red-400 dark:hover:bg-red-900/20">
+                  Deactivate
+                </button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-stone-200 dark:border-stone-700">
         <table className="min-w-full divide-y divide-stone-100 dark:divide-stone-700 text-sm">
           <thead className="bg-stone-50 dark:bg-stone-800">
             <tr>
@@ -1023,19 +1093,12 @@ function TemplateManagement({ token }: TemplateManagementProps) {
                 <td className="px-4 py-3 whitespace-nowrap"><StatusBadge active={t.is_active} /></td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setEditTemplate(t); setModalOpen(true) }}
-                      className="min-h-[32px] px-3 py-1 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700"
-                    >
+                    <button type="button" onClick={() => { setEditTemplate(t); setModalOpen(true) }}
+                      className="min-h-[32px] px-3 py-1 rounded-lg border border-stone-200 text-xs font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
                       Edit
                     </button>
-                    <button
-                      type="button"
-                      disabled={!t.is_active}
-                      onClick={() => setDeactivateTarget(t)}
-                      className="min-h-[32px] px-3 py-1 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-40 disabled:cursor-not-allowed dark:border-red-800/40 dark:text-red-400 dark:hover:bg-red-900/20"
-                    >
+                    <button type="button" disabled={!t.is_active} onClick={() => setDeactivateTarget(t)}
+                      className="min-h-[32px] px-3 py-1 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-40 disabled:cursor-not-allowed dark:border-red-800/40 dark:text-red-400 dark:hover:bg-red-900/20">
                       Deactivate
                     </button>
                   </div>
@@ -1102,10 +1165,15 @@ export default function AdminPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Tabs */}
-        <div className="flex border-b border-stone-200 dark:border-stone-700 mb-6" role="tablist">
-          {([['users', 'User Management'], ['categories', 'Categories'], ['templates', 'Templates'], ['audit-log', 'Audit Log']] as [Tab, string][]).map(
-            ([tab, label]) => (
+        {/* Tabs — scrollable on mobile */}
+        <div className="overflow-x-auto -mx-4 px-4 mb-6">
+          <div className="flex border-b border-stone-200 dark:border-stone-700 min-w-max" role="tablist">
+            {([
+              ['users',      'Users'],
+              ['categories', 'Categories'],
+              ['templates',  'Templates'],
+              ['audit-log',  'Audit Log'],
+            ] as [Tab, string][]).map(([tab, label]) => (
               <button
                 key={tab}
                 role="tab"
@@ -1118,7 +1186,7 @@ export default function AdminPage() {
                     setActiveTab(tab)
                   }
                 }}
-                className={`min-h-[40px] px-5 py-2 text-sm font-medium border-b-2 -mb-px focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors ${
+                className={`min-h-[40px] px-4 sm:px-6 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors ${
                   activeTab === tab
                     ? 'border-amber-500 text-amber-600 dark:text-amber-400 dark:border-amber-400'
                     : 'border-transparent text-stone-500 hover:text-stone-800 hover:border-stone-300 dark:text-stone-400 dark:hover:text-stone-200'
@@ -1126,8 +1194,8 @@ export default function AdminPage() {
               >
                 {label}
               </button>
-            )
-          )}
+            ))}
+          </div>
         </div>
 
         {/* Tab panels */}

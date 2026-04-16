@@ -293,7 +293,7 @@ export default function DocumentListPage() {
           </div>
         )}
 
-        {/* Table */}
+        {/* Document list — cards on mobile, table on desktop */}
         <div className="bg-white rounded-2xl shadow-card border border-stone-200 overflow-hidden dark:bg-stone-900 dark:border-stone-700">
           {loading ? (
             <div className="flex items-center justify-center gap-2.5 py-16 text-stone-400 dark:text-stone-500">
@@ -309,58 +309,128 @@ export default function DocumentListPage() {
               <p className="text-sm mt-1">Try adjusting your filters or create a new document.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-base text-left">
-                <thead className="sticky top-0 bg-stone-50 border-b border-stone-200 z-10 dark:bg-stone-800 dark:border-stone-700">
-                  <tr>
-                    {canBulkAction && (
-                      <th className="px-4 py-3 w-10">
-                        <input
-                          ref={headerCheckboxRef}
-                          type="checkbox"
-                          aria-label="Select all documents"
-                          onChange={toggleSelectAll}
-                          className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
-                        />
-                      </th>
-                    )}
-                    {['Tracking #', 'Title', 'Category', 'Status', 'Priority', 'Current Dept', 'Deadline', 'Last Updated'].map(h => (
-                      <th key={h} className="px-4 py-3 font-semibold text-stone-500 whitespace-nowrap text-xs uppercase tracking-wider dark:text-stone-400">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100 dark:divide-stone-700/60">
-                  {documents.map(doc => {
-                    const docId = String(doc.id)
-                    const isSelected = selectedIds.includes(docId)
-                    return (
-                      <tr key={doc.id}
-                        className={`transition-colors ${doc.is_overdue ? 'border-l-4 border-red-500' : ''} ${isSelected ? 'bg-amber-50/60 dark:bg-amber-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/60'}`}>
+            <>
+              {/* ── Mobile card list (hidden on md+) ── */}
+              <ul className="md:hidden divide-y divide-stone-100 dark:divide-stone-700/60">
+                {documents.map(doc => {
+                  const docId = String(doc.id)
+                  const isSelected = selectedIds.includes(docId)
+                  return (
+                    <li
+                      key={doc.id}
+                      className={`px-4 py-3.5 transition-colors ${doc.is_overdue ? 'border-l-4 border-red-500' : ''} ${isSelected ? 'bg-amber-50/60 dark:bg-amber-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/60'}`}
+                    >
+                      <div className="flex items-start gap-3">
                         {canBulkAction && (
-                          <td className="px-4 py-3 w-10" onClick={e => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSelectOne(docId)}
-                              aria-label={`Select document ${doc.tracking_number}`}
-                              className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
-                            />
-                          </td>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectOne(docId)}
+                            aria-label={`Select document ${doc.tracking_number}`}
+                            className="mt-1 w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer flex-shrink-0"
+                            onClick={e => e.stopPropagation()}
+                          />
                         )}
-                        <td className="px-4 py-3 font-mono text-sm text-stone-700 whitespace-nowrap cursor-pointer dark:text-stone-300" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.tracking_number}</td>
-                        <td className="px-4 py-3 text-stone-900 max-w-xs cursor-pointer dark:text-stone-100" onClick={() => navigate(`/documents/${doc.id}`)}><span className="line-clamp-2">{doc.title}</span></td>
-                        <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.category.name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><StatusBadge status={doc.status} /></td>
-                        <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><PriorityBadge priority={doc.priority} /></td>
-                        <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.current_department.code}</td>
-                        <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><DeadlineBadge deadline={doc.deadline} isOverdue={doc.is_overdue} /></td>
-                        <td className="px-4 py-3 text-stone-500 whitespace-nowrap text-sm cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{formatUpdated(doc.updated_at)}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        <button
+                          className="flex-1 text-left min-w-0"
+                          onClick={() => navigate(`/documents/${doc.id}`)}
+                        >
+                          {/* Tracking number + title */}
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 bg-stone-100 dark:bg-stone-700 px-1.5 py-0.5 rounded shrink-0">
+                              {doc.tracking_number}
+                            </span>
+                            {doc.is_overdue && (
+                              <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">OVERDUE</span>
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 leading-snug mb-2">
+                            {doc.title}
+                          </p>
+                          {/* Badges row */}
+                          <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                            <StatusBadge status={doc.status} />
+                            <PriorityBadge priority={doc.priority} />
+                          </div>
+                          {/* Meta row */}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-400 dark:text-stone-500">
+                            <span>{doc.category.name}</span>
+                            <span>·</span>
+                            <span>{doc.current_department.code}</span>
+                            {doc.deadline && (
+                              <>
+                                <span>·</span>
+                                <DeadlineBadge deadline={doc.deadline} isOverdue={doc.is_overdue} />
+                              </>
+                            )}
+                            <span>·</span>
+                            <span>{formatUpdated(doc.updated_at)}</span>
+                          </div>
+                        </button>
+                        {/* Chevron */}
+                        <svg className="w-4 h-4 text-stone-300 dark:text-stone-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              {/* ── Desktop table (hidden on mobile) ── */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-base text-left">
+                  <thead className="sticky top-0 bg-stone-50 border-b border-stone-200 z-10 dark:bg-stone-800 dark:border-stone-700">
+                    <tr>
+                      {canBulkAction && (
+                        <th className="px-4 py-3 w-10">
+                          <input
+                            ref={headerCheckboxRef}
+                            type="checkbox"
+                            aria-label="Select all documents"
+                            onChange={toggleSelectAll}
+                            className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
+                          />
+                        </th>
+                      )}
+                      {['Tracking #', 'Title', 'Category', 'Status', 'Priority', 'Current Dept', 'Deadline', 'Last Updated'].map(h => (
+                        <th key={h} className="px-4 py-3 font-semibold text-stone-500 whitespace-nowrap text-xs uppercase tracking-wider dark:text-stone-400">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100 dark:divide-stone-700/60">
+                    {documents.map(doc => {
+                      const docId = String(doc.id)
+                      const isSelected = selectedIds.includes(docId)
+                      return (
+                        <tr key={doc.id}
+                          className={`transition-colors ${doc.is_overdue ? 'border-l-4 border-red-500' : ''} ${isSelected ? 'bg-amber-50/60 dark:bg-amber-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/60'}`}>
+                          {canBulkAction && (
+                            <td className="px-4 py-3 w-10" onClick={e => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSelectOne(docId)}
+                                aria-label={`Select document ${doc.tracking_number}`}
+                                className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
+                              />
+                            </td>
+                          )}
+                          <td className="px-4 py-3 font-mono text-sm text-stone-700 whitespace-nowrap cursor-pointer dark:text-stone-300" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.tracking_number}</td>
+                          <td className="px-4 py-3 text-stone-900 max-w-xs cursor-pointer dark:text-stone-100" onClick={() => navigate(`/documents/${doc.id}`)}><span className="line-clamp-2">{doc.title}</span></td>
+                          <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.category.name}</td>
+                          <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><StatusBadge status={doc.status} /></td>
+                          <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><PriorityBadge priority={doc.priority} /></td>
+                          <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.current_department.code}</td>
+                          <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><DeadlineBadge deadline={doc.deadline} isOverdue={doc.is_overdue} /></td>
+                          <td className="px-4 py-3 text-stone-500 whitespace-nowrap text-sm cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{formatUpdated(doc.updated_at)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 

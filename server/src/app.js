@@ -16,6 +16,7 @@ import reportsRoutes from './routes/reports.routes.js'
 import commentsRoutes from './routes/comments.routes.js'
 import auditLogRoutes from './routes/audit-log.routes.js'
 import templatesRoutes from './routes/templates.routes.js'
+import recallRoutes from './routes/recall.routes.js'
 
 const app = express()
 
@@ -47,6 +48,7 @@ app.use('/api/reports', reportsRoutes)
 app.use('/api/documents', commentsRoutes)
 app.use('/api/audit-log', auditLogRoutes)
 app.use('/api/templates', templatesRoutes)
+app.use('/api/documents', recallRoutes)
 
 // Global error handler — consistent { error: { code, message } } format
 app.use((err, _req, res, _next) => {

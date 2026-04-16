@@ -3,6 +3,7 @@ import pool from '../db/pool.js'
 import { authenticate } from '../middleware/auth.js'
 import { createNotificationsForDept } from '../services/notification.service.js'
 import { recordAudit } from '../utils/audit.js'
+import { isEmailEnabled, sendForwardedEmail, sendReturnedEmail } from '../services/email.service.js'
 
 const router = Router()
 
@@ -107,7 +108,7 @@ router.post('/:documentId/forward', authenticate, async (req, res, next) => {
       client.release()
     }
 
-    // Notifications — best-effort (Requirement 14.1, 14.2, 15.1)
+    // Notifications — best-effort
     try {
       const notifMessage = `Document '${doc.tracking_number}' has been forwarded to your department.`
       await createNotificationsForDept(pool, to_department_id, documentId, 'document_forwarded', notifMessage)
@@ -118,6 +119,32 @@ router.post('/:documentId/forward', authenticate, async (req, res, next) => {
       }
     } catch (notifErr) {
       console.error('[routing] notification error (non-fatal):', notifErr.message)
+    }
+
+    // Emails — best-effort
+    try {
+      const emailEnabled = await isEmailEnabled()
+      if (emailEnabled) {
+        const fromDeptResult = await pool.query('SELECT name FROM departments WHERE id = $1', [req.user.departmentId])
+        const toDeptResult   = await pool.query('SELECT name FROM departments WHERE id = $1', [to_department_id])
+        const usersResult    = await pool.query('SELECT email FROM users WHERE department_id = $1 AND is_active = TRUE', [to_department_id])
+        const fromDeptName = fromDeptResult.rows[0]?.name ?? req.user.departmentId
+        const toDeptName   = toDeptResult.rows[0]?.name   ?? to_department_id
+        for (const u of usersResult.rows) {
+          if (!u.email) continue
+          sendForwardedEmail(u.email, {
+            documentTitle: doc.title,
+            trackingNumber: doc.tracking_number,
+            status: updatedDoc.status,
+            fromDept: fromDeptName,
+            toDept: toDeptName,
+            routingNote: routing_note,
+            documentId,
+          }).catch(err => console.warn('[routing] forward email failed:', err.message))
+        }
+      }
+    } catch (emailErr) {
+      console.warn('[routing] email error (non-fatal):', emailErr.message)
     }
 
     recordAudit(pool, req.user.id, 'document.forwarded', 'document', documentId, { to_department_id })
@@ -232,6 +259,29 @@ router.post('/:documentId/return', authenticate, async (req, res, next) => {
       await createNotificationsForDept(pool, previousFromDept, documentId, 'document_returned', notifMessage)
     } catch (notifErr) {
       console.error('[routing] notification error (non-fatal):', notifErr.message)
+    }
+
+    // Emails — best-effort
+    try {
+      const emailEnabled = await isEmailEnabled()
+      if (emailEnabled) {
+        const fromDeptResult = await pool.query('SELECT name FROM departments WHERE id = $1', [req.user.departmentId])
+        const usersResult    = await pool.query('SELECT email FROM users WHERE department_id = $1 AND is_active = TRUE', [previousFromDept])
+        const fromDeptName = fromDeptResult.rows[0]?.name ?? req.user.departmentId
+        for (const u of usersResult.rows) {
+          if (!u.email) continue
+          sendReturnedEmail(u.email, {
+            documentTitle: doc.title,
+            trackingNumber: doc.tracking_number,
+            status: updatedDoc.status,
+            fromDept: fromDeptName,
+            reason,
+            documentId,
+          }).catch(err => console.warn('[routing] return email failed:', err.message))
+        }
+      }
+    } catch (emailErr) {
+      console.warn('[routing] email error (non-fatal):', emailErr.message)
     }
 
     recordAudit(pool, req.user.id, 'document.returned', 'document', documentId, { to_department_id: previousFromDept })
