@@ -1,12 +1,11 @@
 /**
  * Migration runner for NONECO Document Tracking System.
  *
- * Reads all *.sql files from this directory in lexicographic order,
- * tracks applied migrations in a `migrations` table, and runs only
- * pending ones — each in its own transaction.
- *
- * Usage:  node src/db/migrations/migrate.js
- *         npm run db:migrate  (from server/)
+ * Can be used two ways:
+ *   1. CLI:    node src/db/migrations/migrate.js
+ *              npm run db:migrate  (from server/)
+ *   2. Import: import { runMigrations } from './migrate.js'
+ *              await runMigrations()   ← called automatically on server startup
  */
 
 import pg from 'pg'
@@ -20,17 +19,24 @@ dotenv.config()
 const { Pool } = pg
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const pool = new Pool(
-  process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL }
-    : {
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5432', 10),
-        database: process.env.DB_NAME || 'noneco_docs',
-        user: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || '',
-      }
-)
+function makePool() {
+  return new Pool(
+    process.env.DATABASE_URL
+      ? {
+          connectionString: process.env.DATABASE_URL,
+          ssl: process.env.DATABASE_URL.includes('railway') || process.env.DB_SSL === 'true'
+            ? { rejectUnauthorized: false }
+            : false,
+        }
+      : {
+          host: process.env.DB_HOST || 'localhost',
+          port: parseInt(process.env.DB_PORT || '5432', 10),
+          database: process.env.DB_NAME || 'noneco_docs',
+          user: process.env.DB_USER || 'postgres',
+          password: process.env.DB_PASSWORD || '',
+        }
+  )
+}
 
 async function ensureMigrationsTable(client) {
   await client.query(`
@@ -47,7 +53,7 @@ async function getAppliedMigrations(client) {
   return new Set(result.rows.map((r) => r.filename))
 }
 
-async function runMigration(client, filename, sql) {
+async function applyMigration(client, filename, sql) {
   console.log(`  Applying ${filename}...`)
   await client.query('BEGIN')
   try {
@@ -61,16 +67,14 @@ async function runMigration(client, filename, sql) {
   }
 }
 
-async function main() {
+// ── Exported function — called by server.js on startup ───────────────────────
+export async function runMigrations() {
+  const pool = makePool()
   const client = await pool.connect()
   try {
-    // Ensure migrations tracking table exists
     await ensureMigrationsTable(client)
-
-    // Get already-applied migrations
     const applied = await getAppliedMigrations(client)
 
-    // Find all .sql files in this directory, sorted lexicographically
     const files = fs
       .readdirSync(__dirname)
       .filter((f) => f.endsWith('.sql'))
@@ -79,26 +83,27 @@ async function main() {
     const pending = files.filter((f) => !applied.has(f))
 
     if (pending.length === 0) {
-      console.log('No pending migrations.')
+      console.log('[migrations] All up to date.')
       return
     }
 
-    console.log(`Running ${pending.length} migration(s)...`)
-
+    console.log(`[migrations] Running ${pending.length} pending migration(s)…`)
     for (const filename of pending) {
-      const filepath = path.join(__dirname, filename)
-      const sql = fs.readFileSync(filepath, 'utf8')
-      await runMigration(client, filename, sql)
+      const sql = fs.readFileSync(path.join(__dirname, filename), 'utf8')
+      await applyMigration(client, filename, sql)
     }
-
-    console.log('All migrations applied successfully.')
-  } catch (err) {
-    console.error('Migration failed:', err.message)
-    process.exit(1)
+    console.log('[migrations] All migrations applied successfully.')
   } finally {
     client.release()
     await pool.end()
   }
 }
 
-main()
+// ── CLI entry point ───────────────────────────────────────────────────────────
+// Only runs when executed directly: node migrate.js
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  runMigrations().catch((err) => {
+    console.error('Migration failed:', err.message)
+    process.exit(1)
+  })
+}

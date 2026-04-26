@@ -340,26 +340,81 @@ Completed (marked by Dept Head or Admin)
 npm run build
 ```
 
-The compiled output goes to `client/dist/`. Serve it with any static file server or configure Express to serve it.
+The compiled output goes to `client/dist/`. In production the Express server serves it automatically.
 
-### Serve frontend from Express (optional)
+---
 
-Add this to `server/src/app.js` after all API routes:
+## Deploying to Railway
 
-```js
-import { fileURLToPath } from 'url'
-import path from 'path'
+Railway is the recommended hosting platform for this app — it supports Node.js servers, PostgreSQL, persistent volumes, and cron jobs natively.
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-app.use(express.static(path.join(__dirname, '../../client/dist')))
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../client/dist/index.html'))
+### Step 1 — Push to GitHub
+
+Make sure your code is pushed to a GitHub repository (see the GitHub section above).
+
+### Step 2 — Create a Railway project
+
+1. Go to [railway.app](https://railway.app) and sign in with GitHub
+2. Click **New Project** → **Deploy from GitHub repo**
+3. Select your `noneco-document-tracking` repository
+4. Railway will detect `railway.json` and configure the build automatically
+
+### Step 3 — Add PostgreSQL
+
+1. In your Railway project, click **+ New** → **Database** → **Add PostgreSQL**
+2. Railway will automatically set the `DATABASE_URL` environment variable
+
+### Step 4 — Set environment variables
+
+In Railway → your service → **Variables**, add:
+
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `JWT_SECRET` | A long random string (32+ chars) |
+| `JWT_EXPIRES_IN` | `30m` |
+| `APP_URL` | Your Railway public URL (e.g. `https://noneco-dts.up.railway.app`) |
+| `STORAGE_BACKEND` | `local` (or `minio` for persistent file storage) |
+| `UPLOADS_DIR` | `./uploads` |
+
+> `DATABASE_URL` is set automatically by the PostgreSQL plugin — do not add it manually.
+
+### Step 5 — Deploy
+
+Railway will build and deploy automatically. The first deploy will:
+1. Run `npm install` and `npm run build` (builds the React frontend)
+2. Start `node server/src/server.js`
+3. Auto-run all pending database migrations on startup
+4. Serve both the API and the frontend from a single URL
+
+### Step 6 — Create the admin user
+
+After the first deploy, open the Railway **Shell** tab for your service and run:
+
+```bash
+node -e "
+import('./server/src/db/pool.js').then(async ({ default: pool }) => {
+  const bcrypt = await import('bcrypt')
+  const hash = await bcrypt.hash('password', 10)
+  const dept = await pool.query(\"SELECT id FROM departments WHERE code = 'OGM' LIMIT 1\")
+  await pool.query(
+    'INSERT INTO users (username, password_hash, email, full_name, role, department_id) VALUES (\$1,\$2,\$3,\$4,\$5,\$6)',
+    ['admin', hash, 'admin@noneco.example.com', 'System Administrator', 'admin', dept.rows[0].id]
+  )
+  console.log('Admin user created.')
+  process.exit(0)
 })
+"
 ```
 
-### Environment for production
+Then log in at your Railway URL with `admin` / `password` and change the password immediately.
 
-Set `NODE_ENV=production` and use a strong `JWT_SECRET`. Consider using `DATABASE_URL` instead of individual DB vars for easier deployment.
+### File uploads on Railway
+
+Railway's filesystem is ephemeral — uploaded files will be lost on redeploy. For production use:
+
+- **Cloudflare R2** (free tier, S3-compatible) — set `STORAGE_BACKEND=minio` and configure the `MINIO_*` variables
+- **Railway Volumes** — add a persistent volume mounted at `./uploads`
 
 ---
 

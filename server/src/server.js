@@ -4,19 +4,30 @@ dotenv.config()
 import http from 'http'
 import app from './app.js'
 import { startDeadlineJob } from './jobs/deadline.job.js'
+import { runMigrations } from './db/migrations/migrate.js'
 
 const PORT = parseInt(process.env.PORT || '3000', 10)
 
-const server = http.createServer(app)
+async function start() {
+  // Auto-run pending migrations on startup (safe in production)
+  try {
+    await runMigrations()
+  } catch (err) {
+    console.error('[startup] Migration failed — aborting:', err.message)
+    process.exit(1)
+  }
 
-server.listen(PORT, () => {
-  console.log(`NONECO DTS server running on port ${PORT}`)
-  startDeadlineJob()
-})
+  const server = http.createServer(app)
 
-server.on('error', (err) => {
-  console.error('Server error:', err)
-  process.exit(1)
-})
+  server.listen(PORT, () => {
+    console.log(`NONECO DTS server running on port ${PORT}`)
+    startDeadlineJob()
+  })
 
-export default server
+  server.on('error', (err) => {
+    console.error('Server error:', err)
+    process.exit(1)
+  })
+}
+
+start()

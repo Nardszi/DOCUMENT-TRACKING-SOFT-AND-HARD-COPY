@@ -5,12 +5,15 @@ dotenv.config()
 
 const { Pool } = pg
 
-/**
- * Create a pg Pool using DATABASE_URL or individual DB_* env vars.
- */
 const pool = new Pool(
   process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL }
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        // Railway PostgreSQL requires SSL
+        ssl: process.env.DATABASE_URL.includes('railway') || process.env.DB_SSL === 'true'
+          ? { rejectUnauthorized: false }
+          : false,
+      }
     : {
         host: process.env.DB_HOST || 'localhost',
         port: parseInt(process.env.DB_PORT || '5432', 10),
