@@ -1,0 +1,12 @@
+node_modules
+client/node_modules
+server/node_modules
+client/dist
+server/uploads
+.git
+.gitignore
+*.log
+.env
+server/.env
+README.md
+.kiro

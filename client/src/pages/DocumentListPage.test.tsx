@@ -1,4 +1,4 @@
-`     /**
+/**
  * Unit tests for DocumentListPage bulk action confirmation dialog
  * Validates: Requirements 6.4
  */
