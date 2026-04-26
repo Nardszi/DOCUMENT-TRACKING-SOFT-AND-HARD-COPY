@@ -1,7 +1,7 @@
 {
   "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
+    "builder": "NIXPACKS",
+    "buildCommand": "npm install --legacy-peer-deps && npm run build"
   },
   "deploy": {
     "startCommand": "node server/src/server.js",
