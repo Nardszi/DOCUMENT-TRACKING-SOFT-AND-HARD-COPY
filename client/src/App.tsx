@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { NotificationProvider } from './contexts/NotificationContext'
@@ -26,6 +26,13 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Don't redirect /api/* paths — let the browser handle them natively
+function NotFoundRedirect() {
+  const location = useLocation()
+  if (location.pathname.startsWith('/api/')) return null
+  return <Navigate to="/" replace />
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -47,7 +54,7 @@ function App() {
             <Route path="/reports" element={<AuthenticatedLayout><ReportsPage /></AuthenticatedLayout>} />
             <Route path="/audit-log" element={<AuthenticatedLayout><AuditLogPage /></AuthenticatedLayout>} />
             <Route path="/admin/audit-log" element={<AuthenticatedLayout><AuditLogPage /></AuthenticatedLayout>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundRedirect />} />
           </Routes>
           </ToastProvider>
         </NotificationProvider>

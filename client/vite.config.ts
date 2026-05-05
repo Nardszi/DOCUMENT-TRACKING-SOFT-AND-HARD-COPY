@@ -12,6 +12,11 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
+            // Exclude qr-cover from caching — it returns printable HTML
+            urlPattern: /^\/api\/documents\/.*\/qr-cover/i,
+            handler: 'NetworkOnly',
+          },
+          {
             urlPattern: /^\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
