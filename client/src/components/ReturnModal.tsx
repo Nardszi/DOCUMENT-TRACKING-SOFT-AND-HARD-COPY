@@ -68,9 +68,9 @@ export default function ReturnModal({ documentId, token, onSuccess, onClose }: R
         role="dialog"
         aria-modal="true"
         aria-labelledby="return-modal-title"
-        className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4"
+        className="fixed inset-0 z-40 flex items-start sm:items-center justify-center bg-black/50 px-4 pt-8 pb-4 overflow-y-auto"
       >
-        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden dark:bg-stone-800 dark:border dark:border-stone-700">
+        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden dark:bg-stone-800 dark:border dark:border-stone-700 max-h-[calc(100vh-4rem)] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
           {/* Header */}
           <div className="bg-amber-500 px-6 py-4">
             <h2 id="return-modal-title" className="text-base font-bold text-white">
