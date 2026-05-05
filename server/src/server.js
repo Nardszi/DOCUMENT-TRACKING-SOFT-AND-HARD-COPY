@@ -9,25 +9,27 @@ import { runMigrations } from './db/migrations/migrate.js'
 const PORT = parseInt(process.env.PORT || '3000', 10)
 
 async function start() {
-  // Auto-run pending migrations on startup (safe in production)
-  try {
-    await runMigrations()
-  } catch (err) {
-    console.error('[startup] Migration failed — aborting:', err.message)
-    process.exit(1)
-  }
-
+  // Start HTTP server first so Railway health check passes immediately
   const server = http.createServer(app)
 
   server.listen(PORT, () => {
     console.log(`NONECO DTS server running on port ${PORT}`)
-    startDeadlineJob()
   })
 
   server.on('error', (err) => {
     console.error('Server error:', err)
     process.exit(1)
   })
+
+  // Run migrations after server is listening (non-blocking for health check)
+  try {
+    await runMigrations()
+    console.log('[startup] Database ready.')
+    startDeadlineJob()
+  } catch (err) {
+    console.error('[startup] Migration failed:', err.message)
+    // Don't exit — server is still running, DB may connect later
+  }
 }
 
 start()
