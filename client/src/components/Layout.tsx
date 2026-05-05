@@ -144,7 +144,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-stone-50 dark:bg-stone-950">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-stone-900 dark:bg-[#0f0e0d] min-h-screen border-r border-stone-800/60 dark:border-stone-900">
+      <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 bg-stone-900 dark:bg-[#0f0e0d] min-h-screen border-r border-stone-800/60 dark:border-stone-900 sticky top-0 h-screen overflow-y-auto">
         {/* Logo / brand header */}
         <div className="px-5 py-5 border-b border-stone-800/60 dark:border-stone-900 flex items-center gap-3">
           <NONECOLogo size={44} />
