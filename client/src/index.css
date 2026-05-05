@@ -31,6 +31,15 @@
     outline: 2px solid #f59e0b;
     outline-offset: 2px;
   }
+
+  /* iOS date input fix — normalize appearance on Safari/iOS */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 40px;
+  }
 }
 
 @layer components {
