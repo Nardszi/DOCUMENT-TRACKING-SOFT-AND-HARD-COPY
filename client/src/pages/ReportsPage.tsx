@@ -82,7 +82,7 @@ export default function ReportsPage() {
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
       {/* Top banner */}
-      <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-6 py-5 border-b border-stone-700/50">
+      <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-4 sm:px-6 py-5 border-b border-stone-700/50">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-xl font-bold text-white tracking-tight">Reports</h1>
           <p className="text-stone-400 text-sm mt-0.5">Generate and export document activity reports</p>
@@ -111,13 +111,13 @@ export default function ReportsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {REPORT_TYPES.map(r => (
                 <button key={r.value} type="button" onClick={() => setReportType(r.value)}
-                  className={`text-left p-3 rounded-xl border transition-all ${
+                  className={`text-left p-3 rounded-xl border transition-all min-w-0 ${
                     reportType === r.value
                       ? 'border-amber-400 bg-amber-50 ring-1 ring-amber-400 dark:bg-amber-900/20 dark:border-amber-500'
                       : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50 dark:border-stone-600 dark:hover:border-stone-500 dark:hover:bg-stone-700'
                   }`}>
-                  <p className={`text-sm font-semibold ${reportType === r.value ? 'text-amber-700 dark:text-amber-400' : 'text-stone-800 dark:text-stone-200'}`}>{r.label}</p>
-                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{r.desc}</p>
+                  <p className={`text-sm font-semibold break-words ${reportType === r.value ? 'text-amber-700 dark:text-amber-400' : 'text-stone-800 dark:text-stone-200'}`}>{r.label}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 break-words">{r.desc}</p>
                 </button>
               ))}
             </div>
@@ -142,7 +142,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Date range */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5">Date From</label>
                 <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={fieldCls} />
@@ -162,7 +162,7 @@ export default function ReportsPage() {
               </select>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5">Status</label>
                 <select value={status} onChange={e => setStatus(e.target.value)} className={fieldCls}>

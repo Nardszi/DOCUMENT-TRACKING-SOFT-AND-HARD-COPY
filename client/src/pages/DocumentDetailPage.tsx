@@ -171,19 +171,19 @@ export default function DocumentDetailPage() {
     <>
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
       {/* Top banner */}
-      <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-6 py-5 border-b border-stone-700/50">
-        <div className="max-w-screen-xl mx-auto flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
+      <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-4 sm:px-6 py-4 sm:py-5 border-b border-stone-700/50">
+        <div className="max-w-screen-xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => navigate('/documents')}
-              className="min-h-[40px] px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors">
+              className="flex-shrink-0 min-h-[40px] px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors">
               ← Back
             </button>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-mono text-stone-400">{doc.tracking_number}</p>
-              <h1 className="text-xl font-bold text-white tracking-tight leading-tight">{doc.title}</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-tight truncate">{doc.title}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
             <Link to={isCompleted ? '#' : `/documents/${doc.id}/edit`}
               onClick={e => isCompleted && e.preventDefault()}
               className={`inline-flex items-center min-h-[40px] px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors ${isCompleted ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -218,32 +218,34 @@ export default function DocumentDetailPage() {
         )}
 
         {/* Action bar */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-4 mb-4 flex flex-wrap gap-2 items-center dark:bg-stone-800/80 dark:border-stone-700">
-          <span className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mr-1">Actions:</span>
-          <button disabled={isCompleted} onClick={() => setShowForwardModal(true)}
-            className="min-h-[40px] px-4 py-2 rounded-xl bg-purple-600 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-            Forward
-          </button>
-          <button disabled={isCompleted} onClick={() => setShowReturnModal(true)}
-            className="min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-medium text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-            Return
-          </button>
-          <button disabled={isCompleted} onClick={() => setShowActionModal(true)}
-            className="min-h-[40px] px-4 py-2 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-            Record Action
-          </button>
-          {canMarkComplete && (
-            <button disabled={isCompleted || completing} onClick={() => setShowCompleteConfirm(true)}
-              className="min-h-[40px] px-4 py-2 rounded-xl bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              {completing ? 'Completing…' : 'Mark Complete'}
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700">
+          <span className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Actions:</span>
+          <div className="flex flex-wrap gap-2">
+            <button disabled={isCompleted} onClick={() => setShowForwardModal(true)}
+              className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-purple-600 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              Forward
             </button>
-          )}
-          {canRecall && (
-            <button onClick={() => setShowRecallConfirm(true)} disabled={recalling}
-              className="min-h-[40px] px-4 py-2 rounded-xl bg-violet-600 text-sm font-medium text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              Recall
+            <button disabled={isCompleted} onClick={() => setShowReturnModal(true)}
+              className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-medium text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              Return
             </button>
-          )}
+            <button disabled={isCompleted} onClick={() => setShowActionModal(true)}
+              className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              Record Action
+            </button>
+            {canMarkComplete && (
+              <button disabled={isCompleted || completing} onClick={() => setShowCompleteConfirm(true)}
+                className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                {completing ? 'Completing…' : 'Mark Complete'}
+              </button>
+            )}
+            {canRecall && (
+              <button onClick={() => setShowRecallConfirm(true)} disabled={recalling}
+                className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-violet-600 text-sm font-medium text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                Recall
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Two-column layout */}
