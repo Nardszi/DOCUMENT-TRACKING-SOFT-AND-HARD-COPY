@@ -219,29 +219,29 @@ export default function DocumentDetailPage() {
 
         {/* Action bar */}
         <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700">
-          <span className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">Actions:</span>
-          <div className="flex flex-wrap gap-2">
+          <span className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Actions</span>
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
             <button disabled={isCompleted} onClick={() => setShowForwardModal(true)}
-              className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-purple-600 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              className="min-h-[44px] px-3 py-2.5 rounded-xl bg-purple-600 text-sm font-semibold text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
               Forward
             </button>
             <button disabled={isCompleted} onClick={() => setShowReturnModal(true)}
-              className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-medium text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              className="min-h-[44px] px-3 py-2.5 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
               Return
             </button>
             <button disabled={isCompleted} onClick={() => setShowActionModal(true)}
-              className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              className="min-h-[44px] px-3 py-2.5 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
               Record Action
             </button>
             {canMarkComplete && (
               <button disabled={isCompleted || completing} onClick={() => setShowCompleteConfirm(true)}
-                className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                className="min-h-[44px] px-3 py-2.5 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
                 {completing ? 'Completing…' : 'Mark Complete'}
               </button>
             )}
             {canRecall && (
               <button onClick={() => setShowRecallConfirm(true)} disabled={recalling}
-                className="flex-1 min-w-[calc(50%-4px)] sm:flex-none min-h-[40px] px-4 py-2 rounded-xl bg-violet-600 text-sm font-medium text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                className="min-h-[44px] px-3 py-2.5 rounded-xl bg-violet-600 text-sm font-semibold text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
                 Recall
               </button>
             )}
