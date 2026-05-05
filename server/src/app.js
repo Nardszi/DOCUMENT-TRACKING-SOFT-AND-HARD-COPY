@@ -64,9 +64,9 @@ app.use('/api/documents', recallRoutes)
 const clientDist = path.join(__dirname, '../../client/dist')
 if (isProd && fs.existsSync(clientDist)) {
   app.use(express.static(clientDist))
-  // All non-API routes → index.html (React Router handles them)
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/')) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'API route not found.' } })
+  // Only serve index.html for non-API routes (React Router handles client-side routing)
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next()
     res.sendFile(path.join(clientDist, 'index.html'))
   })
 }
