@@ -189,10 +189,12 @@ export default function DocumentDetailPage() {
               className={`inline-flex items-center min-h-[40px] px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors ${isCompleted ? 'opacity-50 pointer-events-none' : ''}`}>
               Edit
             </Link>
-            <a href={`/api/documents/${doc.id}/qr-cover`} target="_blank" rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => window.open(`/api/documents/${doc.id}/qr-cover`, '_blank', 'noopener,noreferrer')}
               className="inline-flex items-center min-h-[40px] px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors">
               Print Cover Sheet
-            </a>
+            </button>
             {canDelete && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
