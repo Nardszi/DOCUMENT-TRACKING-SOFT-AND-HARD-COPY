@@ -23,6 +23,7 @@ import recallRoutes from './routes/recall.routes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isProd = process.env.NODE_ENV === 'production'
+const isVercel = process.env.VERCEL === '1'
 
 const app = express()
 
@@ -69,8 +70,9 @@ app.use('/api/templates', templatesRoutes)
 app.use('/api/documents', recallRoutes)
 
 // ── Serve built React frontend in production ──────────────────────────────────
+// Vercel serves static assets via its edge/CDN, skip here
 const clientDist = path.join(__dirname, '../../client/dist')
-if (isProd && fs.existsSync(clientDist)) {
+if (!isVercel && isProd && fs.existsSync(clientDist)) {
   app.use(express.static(clientDist))
   // Only serve index.html for non-API routes (React Router handles client-side routing)
   app.get('*', (req, res, next) => {

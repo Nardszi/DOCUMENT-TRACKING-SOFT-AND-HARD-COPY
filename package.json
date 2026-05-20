@@ -2,6 +2,7 @@
   "name": "noneco-document-tracking",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "workspaces": [
     "client",
     "server"
@@ -16,5 +17,8 @@
     "start": "node server/src/server.js",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
+  },
+  "dependencies": {
+    "vite": "^5.4.21"
   }
 }
