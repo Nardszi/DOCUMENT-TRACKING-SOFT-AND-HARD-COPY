@@ -241,12 +241,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               )}
             </NavLink>
 
-            {/* Hamburger */}
+            {/* Hamburger - 44px touch target */}
             <button
               onClick={() => setMobileMenuOpen(v => !v)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
-              className="p-2 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="p-2.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
             >
               {mobileMenuOpen ? (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,18 +262,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* ── Mobile drawer menu ── */}
+      {/* ── Mobile drawer menu (sliding from left) ── */}
       {mobileMenuOpen && (
         <>
           {/* Backdrop */}
           <div
-            className="lg:hidden fixed inset-0 z-20 bg-black/50 backdrop-blur-[2px]"
+            className="lg:hidden fixed inset-0 z-20 bg-black/60 animate-backdrop-in"
             onClick={() => setMobileMenuOpen(false)}
             aria-hidden="true"
           />
-          {/* Drawer */}
-          <div className="lg:hidden fixed top-14 left-0 right-0 z-20 bg-stone-900 dark:bg-[#0f0e0d] border-b border-stone-800 shadow-2xl animate-slide-up">
-            <nav className="px-3 py-3 space-y-0.5" aria-label="Mobile navigation">
+          {/* Drawer panel */}
+          <div className="lg:hidden fixed top-0 left-0 bottom-0 z-30 w-[280px] max-w-[80vw] bg-stone-900 dark:bg-[#0f0e0d] shadow-2xl animate-slide-in-left flex flex-col">
+            {/* Logo header */}
+            <div className="flex items-center gap-3 px-4 h-14 border-b border-stone-800 shrink-0">
+              <img src="/noneco-logo.png" alt="NONECO" className="w-7 h-7 object-contain" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-amber-400 leading-tight">NONECO</p>
+                <p className="text-[10px] text-stone-500 leading-tight">Document Tracking</p>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close menu"
+                className="p-2 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors flex-shrink-0"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 overflow-y-auto scrollable px-3 py-3 space-y-0.5" aria-label="Mobile navigation">
               {visibleItems.map((item) => (
                 <NavLink
                   key={item.to}
@@ -281,7 +300,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   end={item.to === '/'}
                   onClick={() => setMobileMenuOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
+                    `flex items-center gap-3 px-3 py-3 min-h-[44px] rounded-lg text-sm font-medium transition-all ${
                       isActive
                         ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
                         : 'text-stone-400 hover:bg-stone-800 hover:text-stone-100 border border-transparent'
@@ -296,10 +315,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </nav>
 
             {/* User + actions */}
-            <div className="px-3 py-3 border-t border-stone-800 space-y-2">
+            <div className="px-3 py-3 border-t border-stone-800 space-y-2 shrink-0">
               <button
                 onClick={toggleTheme}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition-colors"
               >
                 <span>{theme === 'dark' ? Icons.sun : Icons.moon}</span>
                 <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>

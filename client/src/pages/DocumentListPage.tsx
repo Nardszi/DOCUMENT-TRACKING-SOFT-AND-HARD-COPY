@@ -189,14 +189,14 @@ export default function DocumentListPage() {
         </div>
       </div>
 
-      <div className="max-w-screen-xl mx-auto px-4 py-5">
+      <div className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 sm:py-5 pb-8 sm:pb-5">
 
         {/* Filter bar */}
         <form
           onSubmit={(e) => { e.preventDefault(); setPage(1); setAppliedFilters(filters) }}
           className="bg-white rounded-2xl shadow-card border border-stone-200 p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-3">
             <input type="text" name="search" value={filters.search}
               onChange={e => setFilters(p => ({ ...p, search: e.target.value }))}
               placeholder="Search title or tracking #" className={fieldCls} aria-label="Search" />
@@ -228,12 +228,12 @@ export default function DocumentListPage() {
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-stone-500 font-medium">Deadline From</label>
+              <label className="text-[11px] text-stone-500 font-medium">Deadline From</label>
               <input type="date" value={filters.deadline_from}
                 onChange={e => setFilters(p => ({ ...p, deadline_from: e.target.value }))} className={fieldCls} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-stone-500 font-medium">Deadline To</label>
+              <label className="text-[11px] text-stone-500 font-medium">Deadline To</label>
               <input type="date" value={filters.deadline_to}
                 onChange={e => setFilters(p => ({ ...p, deadline_to: e.target.value }))} className={fieldCls} />
             </div>

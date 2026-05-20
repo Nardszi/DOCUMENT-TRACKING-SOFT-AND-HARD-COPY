@@ -119,14 +119,8 @@ export default function LoginPage() {
       ════════════════════════════════════════ */}
       <div className="relative flex flex-col w-full lg:w-[480px] flex-shrink-0 bg-[#1a1a1a] lg:bg-white overflow-hidden">
 
-        {/* Mobile: show the banner photo as background */}
-        <div
-          className="absolute inset-0 lg:hidden bg-cover bg-center opacity-50"
-          style={{ backgroundImage: "url('/noneco-banner.jpg')" }}
-          aria-hidden="true"
-        />
-        {/* Mobile: dark overlay for readability */}
-        <div className="absolute inset-0 lg:hidden bg-gradient-to-br from-[#0d0d0d]/90 via-[#1a1a1a]/80 to-amber-950/60 pointer-events-none" aria-hidden="true" />
+        {/* Mobile: clean dark background instead of photo overlay */}
+        <div className="absolute inset-0 lg:hidden bg-gradient-to-br from-[#0d0d0d] via-[#1a1a1a] to-stone-900 pointer-events-none" aria-hidden="true" />
 
         {/* Top amber rule */}
         <div className="relative z-10 h-[3px] bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" />

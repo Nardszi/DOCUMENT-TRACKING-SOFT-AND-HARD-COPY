@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     font-size: 16px;
     line-height: 1.6;
@@ -16,6 +21,12 @@
   h1 { font-size: 24px; color: #111827; font-weight: 700; letter-spacing: -0.025em; }
   h2 { font-size: 20px; color: #111827; font-weight: 600; }
   h3 { font-size: 18px; color: #111827; font-weight: 600; }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 20px; }
+    h2 { font-size: 18px; }
+    h3 { font-size: 16px; }
+  }
 
   /* Smooth scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -38,7 +49,13 @@
   input[type="time"] {
     -webkit-appearance: none;
     appearance: none;
-    min-height: 40px;
+    min-height: 44px;
+  }
+
+  /* Better native-feeling touch scrolling */
+  .scrollable {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 }
 
@@ -69,5 +86,33 @@
   @keyframes shimmer {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+
+  /* ─── Mobile drawer slide-in from left ─── */
+  @keyframes slideInLeft {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+  }
+
+  @keyframes slideOutLeft {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-100%); }
+  }
+
+  @keyframes backdropIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-slide-out-left {
+    animation: slideOutLeft 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-backdrop-in {
+    animation: backdropIn 0.22s ease-out forwards;
   }
 }
