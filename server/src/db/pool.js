@@ -10,7 +10,7 @@ const pool = new Pool(
     ? {
         connectionString: process.env.DATABASE_URL,
         // Railway PostgreSQL requires SSL
-        ssl: process.env.DATABASE_URL.includes('railway') || process.env.DB_SSL === 'true'
+        ssl: /railway|supabase|sslmode=require/i.test(process.env.DATABASE_URL) || process.env.DB_SSL === 'true'
           ? { rejectUnauthorized: false }
           : false,
       }
