@@ -29,11 +29,19 @@ const app = express()
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// In production the frontend is served from the same origin — no CORS needed.
-// In development allow the Vite dev server.
-if (!isProd) {
+// CORS: allow Vite dev server + Vercel production frontend
+// Set CORS_ORIGIN=* to allow any origin (without credentials)
+const corsOrigin = process.env.CORS_ORIGIN
+if (corsOrigin === '*') {
+  app.use(cors({ origin: true, credentials: true }))
+} else if (corsOrigin) {
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || process.env.APP_URL || 'http://localhost:5173',
+    origin: corsOrigin.split(',').map(s => s.trim()),
+    credentials: true,
+  }))
+} else {
+  app.use(cors({
+    origin: ['http://localhost:5173', /\.vercel\.app$/],
     credentials: true,
   }))
 }

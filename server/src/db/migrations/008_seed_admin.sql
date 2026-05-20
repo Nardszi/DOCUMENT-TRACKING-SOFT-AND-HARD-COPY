@@ -27,7 +27,7 @@ BEGIN
   INSERT INTO users (username, password_hash, email, full_name, role, department_id)
   VALUES (
     'admin',
-    '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    '$2b$10$a9QFiLAxhGRhEheLLLvL8uuaCimLkI1l0.lAkkEG.HbBMt6cbumya',
     'admin@noneco.example.com',
     'System Administrator',
     'admin',

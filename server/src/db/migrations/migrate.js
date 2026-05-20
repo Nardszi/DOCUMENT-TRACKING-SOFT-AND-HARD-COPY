@@ -14,10 +14,10 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
 
-dotenv.config()
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 const { Pool } = pg
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 function makePool() {
   return new Pool(
