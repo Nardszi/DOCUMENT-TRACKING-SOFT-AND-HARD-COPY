@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
@@ -11,10 +11,6 @@ import ActionModal from '../components/ActionModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import TrackingLogTimeline from '../components/TrackingLogTimeline'
 import CommentsSection from '../components/CommentsSection'
-import SignatureModal from '../components/SignatureModal'
-import { useSignatureDetector } from '../hooks/useSignatureDetector'
-import { signPdf } from '../utils/signPdf'
-import { signDocx } from '../utils/signDocx'
 
 interface Department { id: number; code: string; name: string }
 interface User { id: number; full_name: string }
@@ -75,106 +71,6 @@ export default function DocumentDetailPage() {
   const [showRecallConfirm, setShowRecallConfirm] = useState(false)
   const [recallReason, setRecallReason] = useState('')
   const [recalling, setRecalling] = useState(false)
-
-  // ── Signature state ──
-  const [showSignatureModal, setShowSignatureModal] = useState(false)
-  const [signTargetFile, setSignTargetFile] = useState<File | null>(null)
-  const [signTargetAtt, setSignTargetAtt] = useState<Attachment | null>(null)
-  const [signingStatus, setSigningStatus] = useState<'idle' | 'detecting' | 'signing' | 'done' | 'error'>('idle')
-  const [signMessage, setSignMessage] = useState('')
-  const { detect, fields, fieldCount, detecting: detDetecting } = useSignatureDetector()
-
-  const SIGNATURE_KEY = 'doc_track_user_signature'
-
-  const getSavedSignature = (): string | null => localStorage.getItem(SIGNATURE_KEY)
-
-  const handleSignAttachment = useCallback(async (att: Attachment, file?: File) => {
-    let f = file
-    if (!f) {
-      const res = await fetch(`/api/documents/${id}/attachments/${att.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) {
-        setSigningStatus('error')
-        setSignMessage(res.status === 404 ? 'Attachment file not found.' : 'Failed to download attachment.')
-        return
-      }
-      const blob = await res.blob()
-      f = new File([blob], att.original_name, { type: att.mime_type })
-    }
-
-    setSignTargetAtt(att)
-    setSignTargetFile(f)
-    setSigningStatus('detecting')
-    setSignMessage('')
-
-    const result = await detect(f)
-    if (result.error) {
-      setSigningStatus('error')
-      setSignMessage(result.error)
-      return
-    }
-    if (result.fieldCount === 0) {
-      setSigningStatus('error')
-      setSignMessage('No signature fields were found in this document.')
-      return
-    }
-
-    const savedSig = getSavedSignature()
-    if (savedSig) {
-      await doSign(f, result.fields, savedSig, result.fileType!)
-    } else {
-      setShowSignatureModal(true)
-    }
-  }, [id, detect, token])
-
-  const doSign = async (file: File, sigFields: any[], sigDataUrl: string, fileType: 'pdf' | 'docx') => {
-    setSigningStatus('signing')
-    try {
-      const buffer = await file.arrayBuffer()
-      let output: Blob
-
-      if (fileType === 'pdf') {
-        const pdfBytes = await signPdf(buffer, sigDataUrl, sigFields.map(f => ({
-          pageIndex: f.pageIndex,
-          x: f.x,
-          y: f.y,
-          width: f.width,
-          height: f.height,
-          label: f.label,
-        })))
-        output = new Blob([pdfBytes], { type: 'application/pdf' })
-      } else {
-        const signerName = sigFields.length > 0 ? sigFields[0].label.replace(/^sign(?:ature)?\s*:?\s*/i, '').trim() || 'Signed' : 'Signed'
-        output = await signDocx(buffer, signerName, sigFields.map(f => ({
-          paragraphIndex: f.pageIndex,
-          rawText: f.label,
-        })))
-      }
-
-      const url = URL.createObjectURL(output)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `signed_${file.name}`
-      a.click()
-      URL.revokeObjectURL(url)
-
-      setSigningStatus('done')
-      setSignMessage(`Document signed successfully. ${sigFields.length} signature field(s) filled.`)
-      refetchDoc()
-    } catch (err) {
-      setSigningStatus('error')
-      setSignMessage(err instanceof Error ? err.message : 'Signing failed.')
-    }
-  }
-
-  const handleSignatureSave = async (sigDataUrl: string) => {
-    localStorage.setItem(SIGNATURE_KEY, sigDataUrl)
-    setShowSignatureModal(false)
-    if (signTargetFile && fields.length > 0) {
-      await doSign(signTargetFile, fields, sigDataUrl, signTargetAtt?.mime_type === 'application/pdf' ? 'pdf' : 'docx')
-    }
-  }
 
   function refetchDoc() {
     if (!id) return
@@ -404,16 +300,6 @@ export default function DocumentDetailPage() {
                           <p className="text-xs text-stone-500 dark:text-stone-400">{formatBytes(att.file_size_bytes)} · {att.uploaded_by.full_name} · {formatDateTime(att.uploaded_at)}</p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          {(att.mime_type === 'application/pdf' || att.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') && !isCompleted && (
-                            <button
-                              type="button"
-                              onClick={() => handleSignAttachment(att)}
-                              disabled={signingStatus === 'detecting' || signingStatus === 'signing'}
-                              className="min-h-[36px] px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 transition-colors"
-                            >
-                              Sign
-                            </button>
-                          )}
                           <a href={`/api/documents/${doc.id}/attachments/${att.id}`} download={att.original_name}
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                             Download
@@ -465,51 +351,6 @@ export default function DocumentDetailPage() {
       <ConfirmDialog title="Delete Document"
         message={`Permanently delete "${doc.title}"? This will remove all attachments, comments, and tracking history. This cannot be undone.`}
         confirmLabel="Delete Document" onConfirm={handleDelete} onCancel={() => setShowDeleteConfirm(false)} danger />
-    )}
-
-    {/* ── Recall modal ── */}
-    {/* ── Signature status / messages ── */}
-    {signingStatus !== 'idle' && signMessage && (
-      <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shadow-2xl p-4 animate-slide-up">
-        <div className="flex items-start gap-3">
-          {signingStatus === 'detecting' || signingStatus === 'signing' ? (
-            <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin flex-shrink-0 mt-0.5" />
-          ) : signingStatus === 'done' ? (
-            <svg className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
-              {signingStatus === 'detecting' ? 'Scanning for signature fields…' :
-               signingStatus === 'signing' ? 'Applying signature…' :
-               signingStatus === 'done' ? 'Signed' : 'Signature Error'}
-            </p>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{signMessage}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => { setSigningStatus('idle'); setSignMessage('') }}
-            className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 flex-shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    )}
-
-    {/* ── Signature Modal ── */}
-    {showSignatureModal && (
-      <SignatureModal
-        onSave={handleSignatureSave}
-        onClose={() => setShowSignatureModal(false)}
-      />
     )}
 
     {showRecallConfirm && (
