@@ -426,17 +426,6 @@ export default function DocumentDetailPage() {
                 <AttachmentUpload documentId={String(doc.id)} token={token ?? ''} disabled={isCompleted}
                   onUploaded={att => {
                     setDoc(prev => prev ? { ...prev, attachments: [...prev.attachments, att] } : prev)
-                    if (att.mime_type === 'application/pdf' || att.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                      fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                      })
-                        .then(r => { if (!r.ok) throw new Error(); return r.blob() })
-                        .then(blob => {
-                          const file = new File([blob], att.original_name, { type: att.mime_type })
-                          handleSignAttachment(att, file)
-                        })
-                        .catch(() => {})
-                    }
                   }} />
               </div>
             </div>
