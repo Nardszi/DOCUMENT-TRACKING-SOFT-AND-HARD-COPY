@@ -60,11 +60,11 @@ export function useSignatureDetector() {
       let fields: DetectedField[] = []
 
       if (isPdf) {
-        const { default: pdfjsLib } = await import('pdfjs-dist')
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
+        const { GlobalWorkerOptions, getDocument } = await import('pdfjs-dist')
+        GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5/build/pdf.worker.min.mjs`
 
         const buffer = await file.arrayBuffer()
-        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise
+        const pdf = await getDocument({ data: buffer }).promise
 
         for (let p = 0; p < pdf.numPages; p++) {
           const page = await pdf.getPage(p + 1)
