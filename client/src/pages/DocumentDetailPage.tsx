@@ -89,7 +89,19 @@ export default function DocumentDetailPage() {
   const getSavedSignature = (): string | null => localStorage.getItem(SIGNATURE_KEY)
 
   const handleSignAttachment = useCallback(async (att: Attachment, file?: File) => {
-    const f = file ?? await fetch(`/api/documents/${id}/attachments/${att.id}`).then(r => r.blob()).then(b => new File([b], att.original_name, { type: att.mime_type }))
+    let f = file
+    if (!f) {
+      const res = await fetch(`/api/documents/${id}/attachments/${att.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        setSigningStatus('error')
+        setSignMessage(res.status === 404 ? 'Attachment file not found.' : 'Failed to download attachment.')
+        return
+      }
+      const blob = await res.blob()
+      f = new File([blob], att.original_name, { type: att.mime_type })
+    }
 
     setSignTargetAtt(att)
     setSignTargetFile(f)
@@ -114,7 +126,7 @@ export default function DocumentDetailPage() {
     } else {
       setShowSignatureModal(true)
     }
-  }, [id, detect])
+  }, [id, detect, token])
 
   const doSign = async (file: File, sigFields: any[], sigDataUrl: string, fileType: 'pdf' | 'docx') => {
     setSigningStatus('signing')
@@ -415,8 +427,10 @@ export default function DocumentDetailPage() {
                   onUploaded={att => {
                     setDoc(prev => prev ? { ...prev, attachments: [...prev.attachments, att] } : prev)
                     if (att.mime_type === 'application/pdf' || att.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                      fetch(`/api/documents/${doc.id}/attachments/${att.id}`)
-                        .then(r => r.blob())
+                      fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                      })
+                        .then(r => { if (!r.ok) throw new Error(); return r.blob() })
                         .then(blob => {
                           const file = new File([blob], att.original_name, { type: att.mime_type })
                           handleSignAttachment(att, file)
