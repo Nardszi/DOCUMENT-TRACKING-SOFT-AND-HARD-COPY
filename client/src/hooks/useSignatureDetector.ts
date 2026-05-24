@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { PDFDocument } from 'pdf-lib'
+import * as mammoth from 'mammoth'
 
 const SIG_PATTERNS = [
   /signature\s*:?\s*/i,
@@ -202,7 +203,6 @@ export function useSignatureDetector() {
       }
 
       if (isDocx) {
-        const mammoth = await import('mammoth')
         const result = await mammoth.extractRawText({ arrayBuffer: buffer })
         const docxLines = result.value.split('\n')
 
