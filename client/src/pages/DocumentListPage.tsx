@@ -55,6 +55,71 @@ export default function DocumentListPage() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const headerCheckboxRef = useRef<HTMLInputElement>(null)
 
+  // Hero search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<Document[]>([])
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [highlightedIdx, setHighlightedIdx] = useState(-1)
+
+  // Auto-suggest with debounce
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (searchQuery.length < 2) {
+      setSuggestions([]); setSuggestionsOpen(false); return
+    }
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(`/api/documents/quick-search?q=${encodeURIComponent(searchQuery)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        setSuggestions(data.data ?? [])
+        setSuggestionsOpen(true)
+      } catch { setSuggestions([]) }
+      finally { setSearching(false) }
+    }, 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [searchQuery, token])
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSuggestionsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSuggestionsOpen(false)
+    setHighlightedIdx(-1)
+    setPage(1)
+    setFilters(p => ({ ...p, search: searchQuery }))
+    setAppliedFilters(p => ({ ...p, search: searchQuery }))
+  }
+
+  function handleSuggestionSelect(doc: Document) {
+    setSuggestionsOpen(false)
+    navigate(`/documents/${doc.id}`)
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent) {
+    if (!suggestionsOpen || suggestions.length === 0) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIdx(i => Math.min(i + 1, suggestions.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIdx(i => Math.max(i - 1, -1)) }
+    else if (e.key === 'Enter' && highlightedIdx >= 0) { e.preventDefault(); handleSuggestionSelect(suggestions[highlightedIdx]); setSuggestionsOpen(false) }
+    else if (e.key === 'Escape') { setSuggestionsOpen(false); setHighlightedIdx(-1) }
+  }
+
   const canBulkAction = user?.role === 'department_head' || user?.role === 'admin'
 
   useEffect(() => {
@@ -191,15 +256,83 @@ export default function DocumentListPage() {
 
       <div className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 sm:py-5 pb-8 sm:pb-5">
 
+        {/* Hero search bar with auto-suggest */}
+        <div ref={searchRef} className="relative mb-4">
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              onFocus={() => { if (suggestions.length > 0) setSuggestionsOpen(true) }}
+              placeholder="Search by document title or tracking number..."
+              className="w-full rounded-2xl border border-stone-200 bg-white pl-11 pr-20 py-3.5 text-base text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 shadow-sm dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-500 transition-all"
+              aria-label="Search documents"
+              aria-autocomplete="list"
+              aria-expanded={suggestionsOpen}
+              role="combobox"
+            />
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-stone-400 dark:text-stone-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+            </svg>
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searching && (
+                <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              )}
+              <button
+                type="submit"
+                className="min-h-[34px] px-3.5 rounded-lg bg-amber-500 text-xs font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm"
+              >
+                Search
+              </button>
+            </div>
+          </form>
+
+          {/* Auto-suggest dropdown */}
+          {suggestionsOpen && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-white border border-stone-200 shadow-lg overflow-hidden dark:bg-stone-800 dark:border-stone-700">
+              {suggestions.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-stone-400 dark:text-stone-500 flex items-center gap-2">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
+                  No results found
+                </p>
+              ) : (
+                <ul role="listbox" className="divide-y divide-stone-100 dark:divide-stone-700/60 max-h-[320px] overflow-y-auto">
+                  {suggestions.map((doc, idx) => (
+                    <li
+                      key={doc.id}
+                      role="option"
+                      aria-selected={idx === highlightedIdx}
+                      onMouseDown={() => handleSuggestionSelect(doc)}
+                      onMouseEnter={() => setHighlightedIdx(idx)}
+                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${idx === highlightedIdx ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-stone-50 dark:hover:bg-stone-700/50'}`}
+                    >
+                      <span className="font-mono text-xs text-amber-600 dark:text-amber-400 shrink-0 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
+                        {doc.tracking_number}
+                      </span>
+                      <span className="flex-1 min-w-0 truncate text-stone-800 dark:text-stone-200 font-medium">{doc.title}</span>
+                      <StatusBadge status={doc.status} />
+                      <PriorityBadge priority={doc.priority} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="px-4 py-2 bg-stone-50 dark:bg-stone-800/80 border-t border-stone-100 dark:border-stone-700 flex items-center gap-3 text-[11px] text-stone-400 dark:text-stone-500">
+                <span>↑↓ <span className="font-medium">Navigate</span></span>
+                <span>⏎ <span className="font-medium">Open</span></span>
+                <span className="ml-auto">⌦ <span className="font-medium">Esc</span> close</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Filter bar */}
         <form
-          onSubmit={(e) => { e.preventDefault(); setPage(1); setAppliedFilters(filters) }}
+          onSubmit={(e) => { e.preventDefault(); setPage(1); setFilters(p => ({ ...p, search: searchQuery })); setAppliedFilters(p => ({ ...p, search: searchQuery })) }}
           className="bg-white rounded-2xl shadow-card border border-stone-200 p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-3">
-            <input type="text" name="search" value={filters.search}
-              onChange={e => setFilters(p => ({ ...p, search: e.target.value }))}
-              placeholder="Search title or tracking #" className={fieldCls} aria-label="Search" />
             <select name="status" value={filters.status}
               onChange={e => setFilters(p => ({ ...p, status: e.target.value }))} className={fieldCls}>
               <option value="">All Statuses</option>
@@ -242,7 +375,7 @@ export default function DocumentListPage() {
             <button type="submit" className="min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm">
               Apply Filters
             </button>
-            <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); setAppliedFilters(EMPTY_FILTERS) }}
+            <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
               className="min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300 transition-all dark:border-stone-600 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600">
               Clear
             </button>
