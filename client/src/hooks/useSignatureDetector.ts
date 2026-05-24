@@ -35,6 +35,40 @@ function isPatternLine(text: string): boolean {
   return SIG_PATTERNS.some((p) => p.test(text))
 }
 
+function extractPdfText(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+  const fragments: string[] = []
+
+  const textLineRegex = /\(([^)]*?)\)\s*(?:Tj|'|")/g
+  let match: RegExpExecArray | null
+  while ((match = textLineRegex.exec(text)) !== null) {
+    fragments.push(match[1])
+  }
+
+  const hexRegex = /<([0-9A-Fa-f]+)>\s*Tj/g
+  while ((match = hexRegex.exec(text)) !== null) {
+    try {
+      const hex = match[1]
+      const decoded = hex.match(/.{1,2}/g)
+        ?.map((b) => String.fromCharCode(parseInt(b, 16)))
+        .join('') || ''
+      fragments.push(decoded)
+    } catch { }
+  }
+
+  const arrayRegex = /\[(.*?)\]\s*TJ/g
+  while ((match = arrayRegex.exec(text)) !== null) {
+    const inner = match[1]
+    const parts = inner.match(/\(([^)]*?)\)/g) || []
+    for (const p of parts) {
+      fragments.push(p.slice(1, -1))
+    }
+  }
+
+  return fragments.join(' ')
+}
+
 export function useSignatureDetector() {
   const [state, setState] = useState<State>({
     detecting: false,
@@ -60,49 +94,20 @@ export function useSignatureDetector() {
       let fields: DetectedField[] = []
 
       if (isPdf) {
-        const { GlobalWorkerOptions, getDocument } = await import('pdfjs-dist')
-        GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@5/build/pdf.worker.min.mjs`
-
         const buffer = await file.arrayBuffer()
-        const pdf = await getDocument({ data: buffer }).promise
+        const rawText = extractPdfText(buffer)
+        const lines = rawText.split(/\n+/).filter(Boolean)
 
-        for (let p = 0; p < pdf.numPages; p++) {
-          const page = await pdf.getPage(p + 1)
-          const textContent = await page.getTextContent()
-          const viewport = page.getViewport({ scale: 1 })
-
-          let prevY: number | null = null
-          let lineText = ''
-
-          for (const item of textContent.items) {
-            if ('str' in item) {
-              const y = Math.round(item.transform[5])
-              if (prevY !== null && Math.abs(y - prevY) > 8) {
-                if (isPatternLine(lineText)) {
-                  fields.push({
-                    pageIndex: p,
-                    x: 0,
-                    y: y,
-                    width: viewport.width * 0.35,
-                    height: 30,
-                    label: lineText.trim().replace(/:$/, ''),
-                  })
-                }
-                lineText = ''
-              }
-              lineText += item.str + ' '
-              prevY = y
-            }
-          }
-
-          if (lineText && isPatternLine(lineText)) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim()
+          if (line && isPatternLine(line)) {
             fields.push({
-              pageIndex: p,
+              pageIndex: 0,
               x: 0,
-              y: prevY ?? 0,
-              width: viewport.width * 0.35,
+              y: i * 28,
+              width: 300,
               height: 30,
-              label: lineText.trim().replace(/:$/, ''),
+              label: line.replace(/:$/, ''),
             })
           }
         }
