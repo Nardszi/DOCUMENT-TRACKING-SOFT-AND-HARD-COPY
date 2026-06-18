@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
@@ -36,9 +36,31 @@ interface DocumentDetail {
 function PreviewModal({ attachment, docId, onClose }: {
   attachment: Attachment; docId: string; onClose: () => void
 }) {
+  const { token } = useAuth()
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const objectUrlRef = useRef<string | null>(null)
   const isImage = attachment.mime_type.startsWith('image/')
   const isPdf = attachment.mime_type === 'application/pdf'
-  const previewUrl = `/api/documents/${docId}/attachments/${attachment.id}?preview=1`
+
+  useEffect(() => {
+    if (!token || !isImage && !isPdf) { setLoading(false); return }
+    setLoading(true); setPreviewError(false)
+    const url = `/api/documents/${docId}/attachments/${attachment.id}?preview=1`
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => { if (!r.ok) throw new Error(); return r.blob() })
+      .then(blob => {
+        const url = URL.createObjectURL(blob)
+        objectUrlRef.current = url
+        setObjectUrl(url)
+      })
+      .catch(() => setPreviewError(true))
+      .finally(() => setLoading(false))
+    return () => {
+      if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null }
+    }
+  }, [token, docId, attachment.id])
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="preview-title"
@@ -55,10 +77,25 @@ function PreviewModal({ attachment, docId, onClose }: {
           </button>
         </div>
         <div className="flex-1 overflow-auto bg-stone-100 dark:bg-stone-950 flex items-center justify-center p-4" style={{ minHeight: 0 }}>
-          {isImage ? (
-            <img src={previewUrl} alt={attachment.original_name} className="max-w-full max-h-full object-contain rounded-lg" />
-          ) : isPdf ? (
-            <iframe src={previewUrl} title={attachment.original_name} className="w-full h-full rounded-lg min-h-[300px] sm:min-h-[60vh]" />
+          {loading ? (
+            <div className="flex flex-col items-center gap-2 text-stone-400">
+              <svg className="w-8 h-8 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="text-sm">Loading preview…</span>
+            </div>
+          ) : previewError ? (
+            <div className="text-center text-stone-500 dark:text-stone-400">
+              <svg className="w-12 h-12 mx-auto mb-3 text-red-300 dark:text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-sm font-medium">Failed to load preview.</p>
+              <p className="text-xs mt-1">Please download the file instead.</p>
+            </div>
+          ) : isImage && objectUrl ? (
+            <img src={objectUrl} alt={attachment.original_name} className="max-w-full max-h-full object-contain rounded-lg" />
+          ) : isPdf && objectUrl ? (
+            <iframe src={objectUrl} title={attachment.original_name} className="w-full h-full rounded-lg min-h-[300px] sm:min-h-[60vh]" />
           ) : (
             <div className="text-center text-stone-500 dark:text-stone-400">
               <svg className="w-12 h-12 mx-auto mb-3 text-stone-300 dark:text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -481,7 +518,7 @@ export default function DocumentDetailPage() {
                               document.body.removeChild(a)
                               URL.revokeObjectURL(url)
                             } catch {
-                              console.warn('Download failed')
+                              alert('Failed to download attachment.')
                             }
                           }}
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
