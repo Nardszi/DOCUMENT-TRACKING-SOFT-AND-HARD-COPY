@@ -119,7 +119,7 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
         aria-labelledby="routing-modal-title"
         className="fixed inset-0 z-40 flex items-start sm:items-center justify-center bg-black/50 px-4 pt-8 pb-4 overflow-y-auto"
       >
-        <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl overflow-hidden dark:bg-stone-800 dark:border dark:border-stone-700 max-h-[calc(100vh-4rem)] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl dark:bg-stone-800 dark:border dark:border-stone-700 max-h-[calc(100vh-4rem)] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
           {/* Header */}
           <div className="bg-violet-600 px-6 py-4">
             <h2 id="routing-modal-title" className="text-base font-bold text-white">

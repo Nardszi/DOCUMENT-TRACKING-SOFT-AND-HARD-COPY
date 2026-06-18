@@ -196,26 +196,26 @@ export default function AuditLogPage() {
           className="bg-white rounded-2xl border border-stone-200 shadow-card p-4 dark:bg-stone-800/80 dark:border-stone-700"
         >
           <div className="flex flex-wrap gap-3 items-end">
-            <div className="flex flex-col gap-1 min-w-[140px]">
+            <div className="flex flex-col gap-1 min-w-0 sm:min-w-[140px]">
               <label htmlFor="f-from" className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">From</label>
               <input id="f-from" type="date" value={draft.from}
                 onChange={(e) => handleDraftChange('from', e.target.value)}
                 className={inputCls} />
             </div>
-            <div className="flex flex-col gap-1 min-w-[140px]">
+            <div className="flex flex-col gap-1 min-w-0 sm:min-w-[140px]">
               <label htmlFor="f-to" className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">To</label>
               <input id="f-to" type="date" value={draft.to}
                 onChange={(e) => handleDraftChange('to', e.target.value)}
                 className={inputCls} />
             </div>
-            <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
+            <div className="flex flex-col gap-1 flex-1 min-w-0 sm:min-w-[160px]">
               <label htmlFor="f-action" className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Action</label>
               <input id="f-action" type="text" placeholder="e.g. document.created"
                 value={draft.action}
                 onChange={(e) => handleDraftChange('action', e.target.value)}
                 className={inputCls} />
             </div>
-            <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
+            <div className="flex flex-col gap-1 flex-1 min-w-0 sm:min-w-[160px]">
               <label htmlFor="f-user" className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">User</label>
               <input id="f-user" type="text" placeholder="Name or ID"
                 value={draft.user_id}
