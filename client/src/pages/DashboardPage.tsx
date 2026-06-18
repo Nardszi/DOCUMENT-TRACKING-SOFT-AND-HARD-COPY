@@ -10,7 +10,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 interface Department { id: string; code: string; name: string }
 interface DeadlineDoc { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string; current_department: Department }
 type DeptTab = 'my' | 'department'
-interface DeptDoc { id: number; tracking_number: string; title: string; status: string; priority: string; deadline: string | null; is_overdue: boolean; current_department: Department; updated_at: string }
+interface DeptDoc { id: number; tracking_number: string; title: string; status: string; priority: string; deadline: string | null; is_overdue: boolean; current_department: Department; created_at: string; updated_at: string }
 interface DashboardData {
   counts: { total: number; pending: number; in_progress: number; forwarded: number; returned: number; overdue: number; completed: number }
   approaching_deadlines: DeadlineDoc[]
@@ -304,6 +304,7 @@ function DeptDocSection({ tab, user, token, deptDocs, setDeptDocs, loading, setL
               <StatusBadge status={doc.status} />
               <PriorityBadge priority={doc.priority} />
               {doc.deadline && <DeadlineBadge deadline={doc.deadline} isOverdue={doc.is_overdue} />}
+              <span className="text-xs text-stone-400 dark:text-stone-500">{formatDate(doc.created_at)}</span>
               <span className="text-xs text-stone-400 dark:text-stone-500 ml-auto">{doc.current_department.code}</span>
             </div>
           </button>
