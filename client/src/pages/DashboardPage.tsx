@@ -22,21 +22,36 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-interface StatCardProps {
-  label: string; count: number; linkTo: string
-  bg: string; text: string; border: string; icon: React.ReactNode
+function relativeTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  return formatDate(iso)
 }
 
-function StatCard({ label, count, linkTo, bg, text, border, icon }: StatCardProps) {
+interface StatCardProps {
+  label: string; count: number; linkTo: string
+  accent: string; icon: React.ReactNode; iconBg: string
+}
+
+function StatCard({ label, count, linkTo, accent, icon, iconBg }: StatCardProps) {
   return (
     <a href={linkTo}
-      className={`rounded-2xl p-4 border shadow-card flex flex-col gap-3 transition-shadow hover:shadow-card-md ${bg} ${border} cursor-pointer block`}>
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${text} bg-white/70 dark:bg-black/20`}>
-        {icon}
-      </div>
-      <div>
-        <p className={`text-2xl font-bold tracking-tight ${text}`}>{count}</p>
-        <p className={`text-xs font-semibold uppercase tracking-wider ${text} opacity-70 mt-0.5`}>{label}</p>
+      className="group relative rounded-2xl bg-white dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 shadow-card hover:shadow-card-md transition-all duration-200 cursor-pointer block overflow-hidden">
+      <div className={`h-1 w-full ${accent}`} />
+      <div className="p-4 flex flex-col gap-3">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">{count}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mt-0.5">{label}</p>
+        </div>
       </div>
     </a>
   )
@@ -121,23 +136,23 @@ export default function DashboardPage() {
         {/* Stats grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           <StatCard label="Total" count={counts.total} linkTo="/documents"
-            bg="bg-white dark:bg-stone-800/80" border="border-stone-200 dark:border-stone-700" text="text-stone-700 dark:text-stone-200"
+            accent="bg-stone-600" iconBg="bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
           />
           <StatCard label="Pending" count={counts.pending} linkTo="/documents?status=pending"
-            bg="bg-white dark:bg-stone-800/80" border="border-stone-200 dark:border-stone-700" text="text-stone-500 dark:text-stone-400"
+            accent="bg-stone-400" iconBg="bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
           />
           <StatCard label="In Progress" count={counts.in_progress} linkTo="/documents?status=in_progress"
-            bg="bg-amber-50 dark:bg-amber-900/20" border="border-amber-200 dark:border-amber-800/40" text="text-amber-700 dark:text-amber-400"
+            accent="bg-amber-500" iconBg="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
           />
           <StatCard label="Overdue" count={counts.overdue} linkTo="/documents?status=overdue"
-            bg="bg-red-50 dark:bg-red-900/20" border="border-red-200 dark:border-red-800/40" text="text-red-600 dark:text-red-400"
+            accent="bg-red-500" iconBg="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
           />
           <StatCard label="Completed" count={counts.completed} linkTo="/documents?status=completed"
-            bg="bg-emerald-50 dark:bg-emerald-900/20" border="border-emerald-200 dark:border-emerald-800/40" text="text-emerald-700 dark:text-emerald-400"
+            accent="bg-emerald-500" iconBg="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
           />
         </div>
@@ -145,14 +160,14 @@ export default function DashboardPage() {
         {/* Bottleneck (admin only) */}
         {user?.role === 'admin' && bottleneck && (
           <div className="rounded-2xl border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800/40 p-4 flex items-center gap-3.5 shadow-card">
-            <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4.5 h-4.5 w-[18px] h-[18px] text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
               </svg>
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-orange-800 dark:text-orange-300 uppercase tracking-wider">Department Bottleneck</p>
-              <p className="text-sm text-orange-700 dark:text-orange-400 mt-0.5">
+              <p className="text-sm text-orange-700 dark:text-orange-400 mt-0.5 truncate">
                 <span className="font-bold">{bottleneck.department.name}</span> ({bottleneck.department.code}) — {bottleneck.open_count} open document{bottleneck.open_count !== 1 ? 's' : ''}
               </p>
             </div>
@@ -163,9 +178,16 @@ export default function DashboardPage() {
         {pendingApprovals.length > 0 && (
           <div className="bg-white rounded-2xl border border-amber-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-amber-800/40">
             <div className="px-5 py-4 border-b border-amber-100 dark:border-amber-800/30 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Pending Approvals</h2>
-                <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{pendingApprovals.length} item{pendingApprovals.length !== 1 ? 's' : ''} awaiting your review</p>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Pending Approvals</h2>
+                  <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{pendingApprovals.length} item{pendingApprovals.length !== 1 ? 's' : ''} awaiting your review</p>
+                </div>
               </div>
               <Link to="/approvals" className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400">Review all →</Link>
             </div>
@@ -191,9 +213,16 @@ export default function DashboardPage() {
           {/* Recently Updated */}
           <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
             <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Recently Updated</h2>
-                <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">Last 10 documents</p>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-stone-100 dark:bg-stone-700 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-stone-500 dark:text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Recently Updated</h2>
+                  <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">Last 10 documents</p>
+                </div>
               </div>
               <Link to="/documents" className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors">View all →</Link>
             </div>
@@ -217,7 +246,7 @@ export default function DashboardPage() {
                       <div className="flex flex-wrap items-center gap-1.5">
                         <StatusBadge status={doc.status} />
                         <PriorityBadge priority={doc.priority} />
-                        <span className="text-xs text-stone-400 dark:text-stone-500 ml-auto">{formatDate(doc.updated_at)}</span>
+                        <span className="text-xs text-stone-400 dark:text-stone-500 ml-auto">{relativeTime(doc.updated_at)}</span>
                       </div>
                     </button>
                   </li>
@@ -228,9 +257,16 @@ export default function DashboardPage() {
 
           {/* Approaching Deadlines */}
           <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
-            <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700">
-              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Approaching Deadlines</h2>
-              <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">Next 7 days</p>
+            <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Approaching Deadlines</h2>
+                <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">Next 7 days</p>
+              </div>
             </div>
             {approaching_deadlines.length === 0 ? (
               <div className="px-5 py-10 text-center">
@@ -264,15 +300,18 @@ export default function DashboardPage() {
 
         {/* My Department / My Documents */}
         <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
-          <div className="flex gap-1 px-5 pt-4 pb-0">
-            <button onClick={() => { setDeptTab('department'); setDeptDocs([]) }}
-              className={`px-4 py-2 rounded-t-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${deptTab === 'department' ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
-              Department Documents
-            </button>
-            <button onClick={() => { setDeptTab('my'); setDeptDocs([]) }}
-              className={`px-4 py-2 rounded-t-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${deptTab === 'my' ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
-              My Documents
-            </button>
+          <div className="px-5 pt-4 pb-0 flex items-center justify-between">
+            <div className="flex gap-1">
+              <button onClick={() => { setDeptTab('department'); setDeptDocs([]) }}
+                className={`px-4 py-2 rounded-t-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${deptTab === 'department' ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
+                Department Documents
+              </button>
+              <button onClick={() => { setDeptTab('my'); setDeptDocs([]) }}
+                className={`px-4 py-2 rounded-t-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${deptTab === 'my' ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
+                My Documents
+              </button>
+            </div>
+            <Link to="/documents" className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors shrink-0">View all →</Link>
           </div>
           <DeptDocSection
             tab={deptTab}
