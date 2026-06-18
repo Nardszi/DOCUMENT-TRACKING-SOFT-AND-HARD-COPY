@@ -99,8 +99,8 @@ function NONECOLogo({ size = 64 }: { size?: number }) {
       alt="NONECO Logo"
       width={size}
       height={size}
-      className="flex-shrink-0 drop-shadow-sm"
-      style={{ width: size, height: size, objectFit: 'contain' }}
+      className="flex-shrink-0 drop-shadow-sm rounded-full"
+      style={{ width: size, height: size, objectFit: 'cover' }}
     />
   )
 }
@@ -226,7 +226,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center justify-between px-4 h-14">
           {/* Logo + name */}
           <div className="flex items-center gap-2.5">
-            <img src="/noneco-logo.png" alt="NONECO" className="w-7 h-7 object-contain" />
+            <img src="/noneco-logo.png" alt="NONECO" className="w-7 h-7 rounded-full object-cover" />
             <span className="text-sm font-bold text-amber-400 tracking-wide">NONECO</span>
           </div>
 
@@ -281,7 +281,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="lg:hidden fixed top-0 left-0 bottom-0 z-30 w-[280px] max-w-[80vw] bg-stone-900 dark:bg-[#0f0e0d] shadow-2xl animate-slide-in-left flex flex-col">
             {/* Logo header */}
             <div className="flex items-center gap-3 px-4 h-14 border-b border-stone-800 shrink-0">
-              <img src="/noneco-logo.png" alt="NONECO" className="w-7 h-7 object-contain" />
+              <img src="/noneco-logo.png" alt="NONECO" className="w-7 h-7 rounded-full object-cover" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-amber-400 leading-tight">NONECO</p>
                 <p className="text-[10px] text-stone-500 leading-tight">Document Tracking</p>

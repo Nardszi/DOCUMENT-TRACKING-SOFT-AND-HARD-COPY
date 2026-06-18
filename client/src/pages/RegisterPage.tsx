@@ -137,7 +137,7 @@ export default function RegisterPage() {
 
         <div className="relative z-10 flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-10 xl:px-14 py-12">
           <div className="flex items-center gap-4 mb-8">
-            <img src="/noneco-logo.png" alt="NONECO Logo" className="w-12 h-12 object-contain flex-shrink-0" />
+            <img src="/noneco-logo.png" alt="NONECO Logo" className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
             <div className="border-l border-white/20 lg:border-stone-200 pl-4">
               <p className="text-sm font-bold text-amber-400 lg:text-stone-900 leading-tight tracking-wide">NONECO</p>
               <p className="text-[11px] text-stone-300 lg:text-stone-400 leading-tight mt-0.5">Northern Negros Electric Cooperative</p>
