@@ -355,7 +355,7 @@ router.post('/:documentId/forward-all', authenticate, async (req, res, next) => 
         `INSERT INTO tracking_log (document_id, user_id, department_id, event_type, metadata)
          VALUES ($1, $2, $3, 'forwarded', $4)`,
         [documentId, req.user.id, req.user.departmentId,
-         JSON.stringify({ to_all_departments: true, department_ids: allDeptIds, routing_note: routing_note.trim() })]
+         JSON.stringify({ to_all_departments: true, to_department_id: 'ALL', to_department_code: 'ALL DEPARTMENTS', department_ids: allDeptIds, routing_note: routing_note.trim() })]
       )
 
       await client.query('COMMIT')
@@ -363,6 +363,46 @@ router.post('/:documentId/forward-all', authenticate, async (req, res, next) => 
       await client.query('ROLLBACK')
       throw err
     } finally { client.release() }
+
+    // Notifications — best-effort
+    try {
+      const notifMessage = `Document '${doc.tracking_number}' has been forwarded to your department.`
+      for (const deptId of allDeptIds) {
+        await createNotificationsForDept(pool, deptId, documentId, 'document_forwarded', notifMessage)
+      }
+    } catch (notifErr) {
+      console.error('[routing] forward-all notification error (non-fatal):', notifErr.message)
+    }
+
+    // Emails — best-effort
+    try {
+      const emailEnabled = await isEmailEnabled()
+      if (emailEnabled) {
+        const fromDeptResult = await pool.query('SELECT name FROM departments WHERE id = $1', [req.user.departmentId])
+        const fromDeptName = fromDeptResult.rows[0]?.name ?? req.user.departmentId
+        for (const deptId of allDeptIds) {
+          const usersResult = await pool.query('SELECT email FROM users WHERE department_id = $1 AND is_active = TRUE', [deptId])
+          const toDeptResult = await pool.query('SELECT name FROM departments WHERE id = $1', [deptId])
+          const toDeptName = toDeptResult.rows[0]?.name ?? deptId
+          for (const u of usersResult.rows) {
+            if (!u.email) continue
+            sendForwardedEmail(u.email, {
+              documentTitle: doc.title,
+              trackingNumber: doc.tracking_number,
+              status: 'forwarded',
+              fromDept: fromDeptName,
+              toDept: toDeptName,
+              routingNote: routing_note,
+              documentId,
+            }).catch(err => console.warn('[routing] forward-all email failed:', err.message))
+          }
+        }
+      }
+    } catch (emailErr) {
+      console.warn('[routing] forward-all email error (non-fatal):', emailErr.message)
+    }
+
+    recordAudit(pool, req.user.id, 'document.forwarded', 'document', documentId, { to_all_departments: true, department_ids: allDeptIds })
 
     const updatedDoc = await pool.query(
       'SELECT id, tracking_number, title, status, current_department_id FROM documents WHERE id = $1',
