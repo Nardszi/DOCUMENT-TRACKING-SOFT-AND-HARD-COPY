@@ -230,7 +230,7 @@ export default function ProfilePage() {
               </div>
               <div className="px-6 pb-6 -mt-12">
                 <div className="mb-4">
-                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-stone-800">
+                  <div className="w-24 h-24 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-stone-800">
                     <span className="text-3xl font-bold text-white tracking-tight select-none">{initials}</span>
                   </div>
                 </div>
