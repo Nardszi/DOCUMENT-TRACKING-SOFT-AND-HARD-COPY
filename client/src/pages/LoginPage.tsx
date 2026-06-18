@@ -134,7 +134,7 @@ export default function LoginPage() {
             <img
               src="/noneco-logo.png"
               alt="NONECO Logo"
-              className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+              className="w-12 h-12 rounded-full object-cover flex-shrink-0 ring-1 ring-white/20 lg:ring-stone-200"
             />
             <div className="border-l border-white/20 lg:border-stone-200 pl-4">
               <p className="text-sm font-bold text-amber-400 lg:text-stone-900 leading-tight tracking-wide">NONECO</p>

@@ -1,6 +1,6 @@
 {
-  "name": "DocuTracking",
-  "short_name": "DocuTracking",
+  "name": "NONECO Document Tracking",
+  "short_name": "NONECO DTS",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#1c1917",

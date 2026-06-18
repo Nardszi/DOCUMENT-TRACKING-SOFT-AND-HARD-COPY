@@ -46,11 +46,12 @@ function PreviewModal({ attachment, docId, onClose }: {
   const isPdf = attachment.mime_type === 'application/pdf'
 
   useEffect(() => {
-    if (!token || !isImage && !isPdf) { setLoading(false); return }
+    const t = token ?? localStorage.getItem('noneco_token')
+    if (!t || !isImage && !isPdf) { setLoading(false); return }
     setLoading(true); setPreviewError(false)
     const url = `/api/documents/${docId}/attachments/${attachment.id}?preview=1`
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => { if (!r.ok) throw new Error(); return r.blob() })
+    fetch(url, { headers: { Authorization: `Bearer ${t}` } })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob() })
       .then(blob => {
         const url = URL.createObjectURL(blob)
         objectUrlRef.current = url
@@ -61,7 +62,7 @@ function PreviewModal({ attachment, docId, onClose }: {
     return () => {
       if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null }
     }
-  }, [token, docId, attachment.id])
+  }, [token, docId, attachment.id, isImage, isPdf])
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="preview-title"
@@ -505,17 +506,14 @@ export default function DocumentDetailPage() {
                             </button>
                           )}
                           <button onClick={() => {
-                            const form = document.createElement('form')
-                            form.method = 'GET'
-                            form.target = '_blank'
-                            form.action = `/api/documents/${doc.id}/attachments/${att.id}`
-                            const input = document.createElement('input')
-                            input.name = 'token'
-                            input.value = token ?? ''
-                            form.appendChild(input)
-                            document.body.appendChild(form)
-                            form.submit()
-                            document.body.removeChild(form)
+                            const t = token ?? localStorage.getItem('noneco_token') ?? ''
+                            const url = `/api/documents/${doc.id}/attachments/${att.id}?token=${encodeURIComponent(t)}`
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = att.original_name
+                            document.body.appendChild(a)
+                            a.click()
+                            document.body.removeChild(a)
                           }}
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                             Download

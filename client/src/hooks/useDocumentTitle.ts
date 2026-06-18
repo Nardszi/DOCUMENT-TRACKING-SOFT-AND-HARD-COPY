@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-const BASE = 'DocuTracking'
+const BASE = 'NONECO Document Tracking'
 
 export function useDocumentTitle(title?: string) {
   useEffect(() => {
