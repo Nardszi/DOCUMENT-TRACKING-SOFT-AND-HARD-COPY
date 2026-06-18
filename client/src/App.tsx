@@ -13,7 +13,6 @@ import AdminPage from './pages/AdminPage'
 import DocumentCreatePage from './pages/DocumentCreatePage'
 import DocumentEditPage from './pages/DocumentEditPage'
 import DocumentListPage from './pages/DocumentListPage'
-import DepartmentDocumentsPage from './pages/DepartmentDocumentsPage'
 import DocumentDetailPage from './pages/DocumentDetailPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ProfilePage from './pages/ProfilePage'
@@ -57,7 +56,6 @@ function App() {
             <Route path="/documents/new" element={<AuthenticatedLayout><DocumentCreatePage /></AuthenticatedLayout>} />
             <Route path="/documents/:id/edit" element={<AuthenticatedLayout><DocumentEditPage /></AuthenticatedLayout>} />
             <Route path="/documents" element={<AuthenticatedLayout><DocumentListPage /></AuthenticatedLayout>} />
-            <Route path="/my-department" element={<AuthenticatedLayout><DepartmentDocumentsPage /></AuthenticatedLayout>} />
             <Route path="/documents/:id" element={<AuthenticatedLayout><DocumentDetailPage /></AuthenticatedLayout>} />
             <Route path="/notifications" element={<AuthenticatedLayout><NotificationsPage /></AuthenticatedLayout>} />
             <Route path="/profile" element={<AuthenticatedLayout><ProfilePage /></AuthenticatedLayout>} />

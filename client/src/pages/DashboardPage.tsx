@@ -3,10 +3,13 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
+import DeadlineBadge from '../components/DeadlineBadge'
 
 interface Department { id: string; code: string; name: string }
 interface RecentDoc { id: string; tracking_number: string; title: string; status: string; priority: string; current_department: Department; updated_at: string }
 interface DeadlineDoc { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string; current_department: Department }
+type DeptTab = 'my' | 'department'
+interface DeptDoc { id: number; tracking_number: string; title: string; status: string; priority: string; deadline: string | null; is_overdue: boolean; current_department: Department; updated_at: string }
 interface DashboardData {
   counts: { total: number; pending: number; in_progress: number; forwarded: number; returned: number; overdue: number; completed: number }
   recently_updated: RecentDoc[]
@@ -44,6 +47,9 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deptTab, setDeptTab] = useState<DeptTab>('department')
+  const [deptDocs, setDeptDocs] = useState<DeptDoc[]>([])
+  const [deptDocsLoading, setDeptDocsLoading] = useState(false)
 
   useEffect(() => {
     if (!token) return
@@ -214,7 +220,75 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* My Department / My Documents */}
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
+          <div className="flex gap-1 px-5 pt-4 pb-0">
+            <button onClick={() => { setDeptTab('department'); setDeptDocs([]) }}
+              className={`px-4 py-2 rounded-t-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${deptTab === 'department' ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
+              Department Documents
+            </button>
+            <button onClick={() => { setDeptTab('my'); setDeptDocs([]) }}
+              className={`px-4 py-2 rounded-t-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${deptTab === 'my' ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
+              My Documents
+            </button>
+          </div>
+          <DeptDocSection
+            tab={deptTab}
+            user={user}
+            token={token}
+            deptDocs={deptDocs}
+            setDeptDocs={setDeptDocs}
+            loading={deptDocsLoading}
+            setLoading={setDeptDocsLoading}
+            navigate={navigate}
+          />
+        </div>
       </div>
     </div>
+  )
+}
+
+function DeptDocSection({ tab, user, token, deptDocs, setDeptDocs, loading, setLoading, navigate }: {
+  tab: DeptTab; user: any; token: string | null
+  deptDocs: DeptDoc[]; setDeptDocs: (d: DeptDoc[]) => void
+  loading: boolean; setLoading: (v: boolean) => void
+  navigate: ReturnType<typeof useNavigate>
+}) {
+  useEffect(() => {
+    if (!user?.departmentId || !token) return
+    setLoading(true)
+    const params = new URLSearchParams({ limit: '10', page: '1' })
+    if (tab === 'department') params.set('department_id', String(user.departmentId))
+    else params.set('created_by', String(user.id))
+    fetch(`/api/documents?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => setDeptDocs(Array.isArray(data.data) ? data.data : []))
+      .catch(() => setDeptDocs([]))
+      .finally(() => setLoading(false))
+  }, [tab, user, token, setDeptDocs, setLoading])
+
+  if (loading) return <div className="flex items-center justify-center gap-2 py-10 text-stone-400"><div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /><span className="text-sm">Loading…</span></div>
+  if (deptDocs.length === 0) return <div className="py-10 text-center text-sm text-stone-400">{tab === 'department' ? 'No documents in your department.' : 'No documents created by you.'}</div>
+  return (
+    <ul className="divide-y divide-stone-50 dark:divide-stone-700/60">
+      {deptDocs.map(doc => (
+        <li key={doc.id}>
+          <button onClick={() => navigate(`/documents/${doc.id}`)}
+            className="w-full text-left px-5 py-3 min-h-[52px] hover:bg-stone-50 dark:hover:bg-stone-700/40 transition-colors group">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 shrink-0 bg-stone-100 dark:bg-stone-700 px-1.5 py-0.5 rounded">{doc.tracking_number}</span>
+              <span className="text-sm font-medium text-stone-800 dark:text-stone-100 truncate flex-1 min-w-0 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">{doc.title}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <StatusBadge status={doc.status} />
+              <PriorityBadge priority={doc.priority} />
+              {doc.deadline && <DeadlineBadge deadline={doc.deadline} isOverdue={doc.is_overdue} />}
+              <span className="text-xs text-stone-400 dark:text-stone-500 ml-auto">{doc.current_department.code}</span>
+            </div>
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }
