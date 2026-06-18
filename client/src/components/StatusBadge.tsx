@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 type Status = 'pending' | 'in_progress' | 'forwarded' | 'returned' | 'completed'
 
 const STATUS_CONFIG: Record<Status, { bg: string; text: string; dot: string; label: string }> = {
@@ -8,7 +10,7 @@ const STATUS_CONFIG: Record<Status, { bg: string; text: string; dot: string; lab
   completed:   { bg: 'bg-emerald-50 dark:bg-emerald-900/30',  text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500',                  label: 'Completed' },
 }
 
-export default function StatusBadge({ status }: { status: string }) {
+const StatusBadge = memo(function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CONFIG[status as Status] ?? {
     bg: 'bg-stone-100 dark:bg-stone-700/60',
     text: 'text-stone-600 dark:text-stone-300',
@@ -21,4 +23,6 @@ export default function StatusBadge({ status }: { status: string }) {
       {cfg.label}
     </span>
   )
-}
+})
+
+export default StatusBadge

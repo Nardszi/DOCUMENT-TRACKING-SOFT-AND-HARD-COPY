@@ -21,6 +21,7 @@ import AuditLogPage from './pages/AuditLogPage'
 import { ToastProvider } from './components/ToastContainer'
 import OfflineIndicator from './components/OfflineIndicator'
 import SessionManager from './components/SessionManager'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -44,8 +45,9 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <ToastProvider>
-          <OfflineIndicator />
+           <OfflineIndicator />
           <SessionManager />
+          <ErrorBoundary>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -64,6 +66,7 @@ function App() {
             <Route path="/admin/audit-log" element={<AuthenticatedLayout><AuditLogPage /></AuthenticatedLayout>} />
             <Route path="*" element={<NotFoundRedirect />} />
           </Routes>
+          </ErrorBoundary>
           </ToastProvider>
         </NotificationProvider>
       </AuthProvider>

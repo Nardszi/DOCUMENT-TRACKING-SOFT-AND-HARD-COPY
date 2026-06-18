@@ -1,3 +1,5 @@
+import { useFocusTrap } from '../utils/useFocusTrap'
+
 interface ConfirmDialogProps {
   title: string
   message: string
@@ -17,8 +19,10 @@ export default function ConfirmDialog({
   onCancel,
   danger = false,
 }: ConfirmDialogProps) {
+  const trapRef = useFocusTrap(true)
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"

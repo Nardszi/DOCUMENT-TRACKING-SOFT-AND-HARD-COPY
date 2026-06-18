@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
+import { CardSkeleton } from '../components/Skeleton'
 
 interface Notification {
   id: string; document_id: string | null; event_type: string
@@ -42,14 +43,14 @@ export default function NotificationsPage() {
     setLoading(true)
     fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(data => setNotifications(data.notifications ?? []))
-      .catch(() => {}).finally(() => setLoading(false))
+      .catch(() => console.warn('[Notifications] Failed to load')).finally(() => setLoading(false))
   }, [token])
 
   useEffect(() => { fetchNotifications() }, [fetchNotifications])
 
   async function handleClick(n: Notification) {
     if (!n.is_read) {
-      await fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+      await fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => console.warn('[Notifications] Failed to mark as read'))
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
       refreshUnreadCount()
     }
@@ -58,7 +59,7 @@ export default function NotificationsPage() {
 
   async function handleMarkAll() {
     setMarkingAll(true)
-    await fetch('/api/notifications/read-all', { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})
+    await fetch('/api/notifications/read-all', { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => console.warn('[Notifications] Failed to mark all as read'))
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
     refreshUnreadCount()
     setMarkingAll(false)
@@ -93,11 +94,8 @@ export default function NotificationsPage() {
 
       <div className="max-w-2xl mx-auto px-4 py-6">
         {loading ? (
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-8 text-center text-stone-500 dark:bg-stone-800/80 dark:border-stone-700 dark:text-stone-400">
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">Loading…</span>
-            </div>
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-5 dark:bg-stone-800/80 dark:border-stone-700 space-y-4">
+            <CardSkeleton count={5} />
           </div>
         ) : notifications.length === 0 ? (
           <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-12 text-center dark:bg-stone-800/80 dark:border-stone-700">

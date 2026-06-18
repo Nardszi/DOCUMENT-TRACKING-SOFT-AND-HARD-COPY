@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { TableSkeleton } from '../components/Skeleton'
 
 interface AuditEntry {
   id: string
@@ -247,10 +248,7 @@ export default function AuditLogPage() {
         <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
 
           {loading ? (
-            <div className="py-16 flex items-center justify-center gap-2 text-stone-400 dark:text-stone-500">
-              <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">Loading {limit} entries…</span>
-            </div>
+            <TableSkeleton rows={15} cols={5} />
           ) : entries.length === 0 ? (
             <div className="py-16 text-center">
               <svg className="w-10 h-10 mx-auto mb-3 text-stone-300 dark:text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,7 +258,8 @@ export default function AuditLogPage() {
               {hasFilters && <p className="text-xs text-stone-400 dark:text-stone-500 mt-1">Try adjusting your filters</p>}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 sticky top-0 z-10">
                   <tr>
@@ -326,6 +325,42 @@ export default function AuditLogPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile card view */}
+            <ul className="md:hidden divide-y divide-stone-100 dark:divide-stone-700/60">
+              {entries.map((entry) => {
+                const hasDetails = entry.details != null && Object.keys(entry.details).length > 0
+                const isExpanded = expandedId === entry.id
+                return (
+                  <li key={entry.id} className="px-4 py-3.5">
+                    <button
+                      className="w-full text-left min-w-0"
+                      onClick={() => hasDetails && setExpandedId(isExpanded ? null : entry.id)}
+                    >
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${actionColor(entry.action)}`}>{entry.action}</span>
+                        <span className="text-xs text-stone-400">{entry.user_full_name || '—'}</span>
+                      </div>
+                      <p className="text-xs text-stone-500 mb-1 tabular-nums">{formatTimestamp(entry.created_at)}</p>
+                      <div className="flex items-center gap-2 text-xs text-stone-400">
+                        <span className="font-mono">{entry.target_type}{entry.target_id ? <span className="text-stone-400"> #{entry.target_id.slice(0, 8)}…</span> : ''}</span>
+                        {hasDetails && (
+                          <svg className={`w-3 h-3 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                    {isExpanded && hasDetails && (
+                      <pre className="mt-2 text-xs text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all">
+                        {JSON.stringify(entry.details, null, 2)}
+                      </pre>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+            </>
           )}
 
           {/* ── Pagination footer ── */}

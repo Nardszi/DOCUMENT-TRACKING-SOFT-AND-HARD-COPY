@@ -8,62 +8,35 @@ interface NotificationContextValue {
 
 const NotificationContext = createContext<NotificationContextValue>({ unreadCount: 0, refreshUnreadCount: () => {} })
 
+const POLL_INTERVAL = 30000
+
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { token, isAuthenticated } = useAuth()
   const [unreadCount, setUnreadCount] = useState(0)
-  const esRef = useRef<EventSource | null>(null)
-  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const retryDelay = useRef(1000)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const refreshUnreadCount = useCallback(() => {
     if (!token) return
     fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => setUnreadCount(data.unread_count ?? 0))
-      .catch(() => {})
+      .catch(() => { console.warn('[Notifications] Failed to fetch unread count') })
   }, [token])
-
-  const connect = useCallback(() => {
-    if (!token || !isAuthenticated) return
-    if (esRef.current) { esRef.current.close(); esRef.current = null }
-
-    const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`)
-    esRef.current = es
-
-    es.onopen = () => { retryDelay.current = 1000 }
-
-    es.onmessage = (e) => {
-      try {
-        const payload = JSON.parse(e.data)
-        if (payload.type === 'notification') {
-          setUnreadCount((c) => c + 1)
-        }
-      } catch {}
-    }
-
-    es.onerror = () => {
-      es.close()
-      esRef.current = null
-      const delay = Math.min(retryDelay.current, 30000)
-      retryDelay.current = Math.min(delay * 2, 30000)
-      retryRef.current = setTimeout(connect, delay)
-    }
-  }, [token, isAuthenticated])
 
   useEffect(() => {
     if (!isAuthenticated) {
-      if (esRef.current) { esRef.current.close(); esRef.current = null }
-      if (retryRef.current) clearTimeout(retryRef.current)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      intervalRef.current = null
       setUnreadCount(0)
       return
     }
     refreshUnreadCount()
-    connect()
+    intervalRef.current = setInterval(refreshUnreadCount, POLL_INTERVAL)
     return () => {
-      if (esRef.current) { esRef.current.close(); esRef.current = null }
-      if (retryRef.current) clearTimeout(retryRef.current)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      intervalRef.current = null
     }
-  }, [isAuthenticated, connect, refreshUnreadCount])
+  }, [isAuthenticated, refreshUnreadCount])
 
   return (
     <NotificationContext.Provider value={{ unreadCount, refreshUnreadCount }}>

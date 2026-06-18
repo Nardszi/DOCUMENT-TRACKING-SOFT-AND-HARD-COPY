@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import Skeleton from '../components/Skeleton'
 
 interface Category {
   id: number
@@ -55,6 +56,16 @@ export default function DocumentEditPage() {
   const [loadError, setLoadError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const initialForm = useRef<string | null>(null)
+  const formDirty = initialForm.current !== null && JSON.stringify(form) !== initialForm.current
+
+  useEffect(() => {
+    if (formDirty) {
+      const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+      window.addEventListener('beforeunload', handler)
+      return () => window.removeEventListener('beforeunload', handler)
+    }
+  }, [formDirty])
 
   useEffect(() => {
     const headers = { Authorization: `Bearer ${token}` }
@@ -70,14 +81,16 @@ export default function DocumentEditPage() {
         setDocument(doc)
         setCategories(Array.isArray(cats) ? cats : cats.categories ?? [])
         setDepartments(Array.isArray(depts) ? depts : [])
-        setForm({
+        const initial = {
           title: doc.title ?? '',
           category_id: doc.category?.id ? String(doc.category.id) : '',
           originating_department_id: doc.originating_department?.id ? String(doc.originating_department.id) : '',
           description: doc.description ?? '',
           deadline: doc.deadline ? doc.deadline.split('T')[0] : '',
-          priority: doc.priority ? doc.priority.toLowerCase() : 'normal',
-        })
+          priority: doc.priority ?? 'normal',
+        }
+        setForm(initial)
+        initialForm.current = JSON.stringify(initial)
       })
       .catch((err) => setLoadError(err.message || 'Failed to load document.'))
       .finally(() => setLoadingData(false))
@@ -162,10 +175,17 @@ export default function DocumentEditPage() {
 
   if (loadingData) {
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-stone-500 dark:text-stone-400">
-          <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm">Loading…</span>
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
+        <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-6 py-5 border-b border-stone-700/50">
+          <div className="max-w-2xl mx-auto"><Skeleton className="h-6 w-48 mb-2" /><Skeleton className="h-4 w-64" /></div>
+        </div>
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <div className="bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-200 dark:border-stone-700 p-6 space-y-4">
+            <Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" />
+            <div className="grid grid-cols-2 gap-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+            <Skeleton className="h-20 w-full" /><Skeleton className="h-10 w-full" />
+            <div className="grid grid-cols-4 gap-2"><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /></div>
+          </div>
         </div>
       </div>
     )

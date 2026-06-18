@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import ConfirmDialog from './ConfirmDialog'
+import { useFocusTrap } from '../utils/useFocusTrap'
 
 interface Department {
   id: number
@@ -108,9 +109,11 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
   const ccDepts = departments.filter((d) => String(d.id) !== toDeptId)
   const selectedDept = departments.find((d) => String(d.id) === toDeptId)
 
+  const trapRef = useFocusTrap(true)
   return (
     <>
       <div
+        ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="routing-modal-title"

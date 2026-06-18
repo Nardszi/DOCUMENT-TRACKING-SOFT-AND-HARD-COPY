@@ -6,6 +6,7 @@ import PriorityBadge from '../components/PriorityBadge'
 import DeadlineBadge from '../components/DeadlineBadge'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useToast } from '../components/ToastContainer'
+import { TableSkeleton } from '../components/Skeleton'
 
 interface Category { id: number; name: string }
 interface Department { id: number; code: string; name: string }
@@ -14,13 +15,13 @@ interface Document {
   category: { id: number; name: string }
   current_department: { id: number; code: string; name: string }
   status: string; priority: string; deadline: string | null
-  is_overdue: boolean; updated_at: string
+  is_overdue: boolean; is_archived: boolean; updated_at: string
 }
 interface Filters {
   search: string; status: string; department_id: string
-  priority: string; category_id: string; deadline_from: string; deadline_to: string
+  priority: string; category_id: string; deadline_from: string; deadline_to: string; include_archived: string
 }
-const EMPTY_FILTERS: Filters = { search: '', status: '', department_id: '', priority: '', category_id: '', deadline_from: '', deadline_to: '' }
+const EMPTY_FILTERS: Filters = { search: '', status: '', department_id: '', priority: '', category_id: '', deadline_from: '', deadline_to: '', include_archived: '' }
 const PAGE_SIZE = 25
 const PRIORITY_OPTIONS = ['low', 'normal', 'high', 'urgent'] as const
 type Priority = typeof PRIORITY_OPTIONS[number]
@@ -130,7 +131,7 @@ export default function DocumentListPage() {
     ]).then(([cats, depts]) => {
       setCategories(Array.isArray(cats) ? cats : [])
       setDepartments(Array.isArray(depts) ? depts : [])
-    }).catch(() => {})
+    }).catch(() => console.warn('[Documents] Failed to load categories/departments'))
   }, [token])
 
   const fetchDocuments = useCallback(async (f: Filters, p: number) => {
@@ -144,6 +145,7 @@ export default function DocumentListPage() {
       if (f.category_id) params.set('category_id', f.category_id)
       if (f.deadline_from) params.set('deadline_from', f.deadline_from)
       if (f.deadline_to) params.set('deadline_to', f.deadline_to)
+      if (f.include_archived === '1') params.set('include_archived', '1')
       const res = await fetch(`/api/documents?${params}`, { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) throw new Error()
       const data = await res.json()
@@ -395,6 +397,14 @@ export default function DocumentListPage() {
                 onChange={e => setFilters(p => ({ ...p, deadline_to: e.target.value }))} className={fieldCls} />
             </div>
           </div>
+          <div className="flex items-center gap-3 mb-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={filters.include_archived === '1'}
+                onChange={e => setFilters(p => ({ ...p, include_archived: e.target.checked ? '1' : '' }))}
+                className="w-4 h-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400 cursor-pointer" />
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400">Show archived documents</span>
+            </label>
+          </div>
           <div className="flex gap-2">
             <button type="submit" className="min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm">
               Apply Filters
@@ -463,10 +473,7 @@ export default function DocumentListPage() {
         {/* Document list — cards on mobile, table on desktop */}
         <div className="bg-white rounded-2xl shadow-card border border-stone-200 overflow-hidden dark:bg-stone-900 dark:border-stone-700">
           {loading ? (
-            <div className="flex items-center justify-center gap-2.5 py-16 text-stone-400 dark:text-stone-500">
-              <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">Loading…</span>
-            </div>
+            <TableSkeleton rows={10} cols={7} />
           ) : documents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-stone-400 dark:text-stone-500">
               <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -509,6 +516,9 @@ export default function DocumentListPage() {
                             </span>
                             {doc.is_overdue && (
                               <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">OVERDUE</span>
+                            )}
+                            {doc.is_archived && (
+                              <span className="text-[10px] font-bold text-stone-600 bg-stone-100 border border-stone-300 px-1.5 py-0.5 rounded-full dark:text-stone-300 dark:bg-stone-700 dark:border-stone-600">ARCHIVED</span>
                             )}
                           </div>
                           <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 leading-snug mb-2">
@@ -583,7 +593,12 @@ export default function DocumentListPage() {
                               />
                             </td>
                           )}
-                          <td className="px-4 py-3 font-mono text-sm text-stone-700 whitespace-nowrap cursor-pointer dark:text-stone-300" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.tracking_number}</td>
+                          <td className="px-4 py-3 font-mono text-sm text-stone-700 whitespace-nowrap cursor-pointer dark:text-stone-300" onClick={() => navigate(`/documents/${doc.id}`)}>
+                            <span className="flex items-center gap-2">
+                              {doc.tracking_number}
+                              {doc.is_archived && <span className="text-[10px] font-bold text-stone-500 bg-stone-100 border border-stone-300 px-1.5 py-0.5 rounded dark:text-stone-400 dark:bg-stone-700 dark:border-stone-600">ARCHIVED</span>}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 text-stone-900 max-w-xs cursor-pointer dark:text-stone-100" onClick={() => navigate(`/documents/${doc.id}`)}><span className="line-clamp-2">{doc.title}</span></td>
                           <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.category.name}</td>
                           <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><StatusBadge status={doc.status} /></td>

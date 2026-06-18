@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 type Priority = 'low' | 'normal' | 'high' | 'urgent'
 
 const PRIORITY_CONFIG: Record<Priority, { bg: string; text: string; dot: string; label: string }> = {
@@ -7,7 +9,7 @@ const PRIORITY_CONFIG: Record<Priority, { bg: string; text: string; dot: string;
   urgent: { bg: 'bg-red-50 dark:bg-red-900/30',        text: 'text-red-700 dark:text-red-300',       dot: 'bg-red-500 animate-pulse', label: 'Urgent' },
 }
 
-export default function PriorityBadge({ priority }: { priority: string }) {
+const PriorityBadge = memo(function PriorityBadge({ priority }: { priority: string }) {
   const cfg = PRIORITY_CONFIG[priority.toLowerCase() as Priority] ?? {
     bg: 'bg-stone-100 dark:bg-stone-700/60',
     text: 'text-stone-500 dark:text-stone-400',
@@ -20,4 +22,6 @@ export default function PriorityBadge({ priority }: { priority: string }) {
       {cfg.label}
     </span>
   )
-}
+})
+
+export default PriorityBadge

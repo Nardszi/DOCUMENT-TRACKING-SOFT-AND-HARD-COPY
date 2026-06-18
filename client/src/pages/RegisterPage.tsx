@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Skeleton from '../components/Skeleton'
 
 interface Department { id: number; code: string; name: string }
 
@@ -17,9 +18,26 @@ export default function RegisterPage() {
     fetch('/api/departments')
       .then(r => r.json())
       .then(data => setDepartments(Array.isArray(data) ? data : []))
-      .catch(() => {})
+      .catch(() => setApiError('Failed to load departments.'))
       .finally(() => setLoading(false))
   }, [])
+
+  const validateField = (name: string, value: string): string => {
+    switch (name) {
+      case 'username': return !value.trim() ? 'Username is required' : ''
+      case 'full_name': return !value.trim() ? 'Full name is required' : ''
+      case 'email': return !value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? 'Valid email is required' : ''
+      case 'department_id': return !value ? 'Department is required' : ''
+      case 'password': return !value ? 'Password is required' : value.length < 8 ? 'Must be at least 8 characters' : ''
+      case 'confirm_password': return !value ? 'Please confirm your password' : form.password !== value ? 'Passwords do not match' : ''
+      default: return ''
+    }
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }))
+  }
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -68,9 +86,17 @@ export default function RegisterPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950">
-        <div className="flex items-center gap-3 text-stone-500">
-          <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm">Loading…</span>
+        <div className="w-full max-w-md mx-auto px-4 space-y-4">
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-4 w-64 mx-auto" />
+          <div className="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-6 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
         </div>
       </div>
     )
@@ -144,7 +170,7 @@ export default function RegisterPage() {
               <form onSubmit={handleSubmit} noValidate className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-stone-300 lg:text-stone-500 uppercase tracking-widest mb-1.5">Username</label>
-                  <input type="text" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))}
+                  <input name="username" type="text" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} onBlur={handleBlur}
                     className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-white/10 lg:bg-stone-50 text-white lg:text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 ${errors.username ? 'border-red-400' : 'border-white/20 lg:border-stone-200'}`}
                     placeholder="Choose a username" />
                   {errors.username && <p className="mt-1 text-xs text-red-300 lg:text-red-600">{errors.username}</p>}
@@ -152,7 +178,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-300 lg:text-stone-500 uppercase tracking-widest mb-1.5">Full Name</label>
-                  <input type="text" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
+                  <input name="full_name" type="text" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} onBlur={handleBlur}
                     className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-white/10 lg:bg-stone-50 text-white lg:text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 ${errors.full_name ? 'border-red-400' : 'border-white/20 lg:border-stone-200'}`}
                     placeholder="Enter your full name" />
                   {errors.full_name && <p className="mt-1 text-xs text-red-300 lg:text-red-600">{errors.full_name}</p>}
@@ -160,7 +186,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-300 lg:text-stone-500 uppercase tracking-widest mb-1.5">Email</label>
-                  <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                  <input name="email" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} onBlur={handleBlur}
                     className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-white/10 lg:bg-stone-50 text-white lg:text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 ${errors.email ? 'border-red-400' : 'border-white/20 lg:border-stone-200'}`}
                     placeholder="email@example.com" />
                   {errors.email && <p className="mt-1 text-xs text-red-300 lg:text-red-600">{errors.email}</p>}
@@ -168,7 +194,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-300 lg:text-stone-500 uppercase tracking-widest mb-1.5">Department</label>
-                  <select value={form.department_id} onChange={e => setForm(p => ({ ...p, department_id: e.target.value }))}
+                  <select name="department_id" value={form.department_id} onChange={e => setForm(p => ({ ...p, department_id: e.target.value }))} onBlur={handleBlur}
                     className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-white/10 lg:bg-stone-50 text-white lg:text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-300 ${errors.department_id ? 'border-red-400' : 'border-white/20 lg:border-stone-200'}`}>
                     <option value="">Select department…</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
@@ -178,7 +204,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-300 lg:text-stone-500 uppercase tracking-widest mb-1.5">Password</label>
-                  <input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                  <input name="password" type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} onBlur={handleBlur}
                     className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-white/10 lg:bg-stone-50 text-white lg:text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 ${errors.password ? 'border-red-400' : 'border-white/20 lg:border-stone-200'}`}
                     placeholder="At least 8 characters" />
                   {errors.password && <p className="mt-1 text-xs text-red-300 lg:text-red-600">{errors.password}</p>}
@@ -186,7 +212,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-300 lg:text-stone-500 uppercase tracking-widest mb-1.5">Confirm Password</label>
-                  <input type="password" value={form.confirm_password} onChange={e => setForm(p => ({ ...p, confirm_password: e.target.value }))}
+                  <input name="confirm_password" type="password" value={form.confirm_password} onChange={e => setForm(p => ({ ...p, confirm_password: e.target.value }))} onBlur={handleBlur}
                     className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-white/10 lg:bg-stone-50 text-white lg:text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300 ${errors.confirm_password ? 'border-red-400' : 'border-white/20 lg:border-stone-200'}`}
                     placeholder="Repeat your password" />
                   {errors.confirm_password && <p className="mt-1 text-xs text-red-300 lg:text-red-600">{errors.confirm_password}</p>}

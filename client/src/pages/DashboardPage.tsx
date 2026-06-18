@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
 import DeadlineBadge from '../components/DeadlineBadge'
+import Skeleton, { CardSkeleton } from '../components/Skeleton'
 
 interface Department { id: string; code: string; name: string }
 interface RecentDoc { id: string; tracking_number: string; title: string; status: string; priority: string; current_department: Department; updated_at: string }
@@ -63,10 +64,18 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-stone-500 dark:text-stone-400">
-          <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm">Loading dashboard…</span>
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
+        <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-6 py-5 border-b border-stone-700/50">
+          <div className="max-w-7xl mx-auto"><Skeleton className="h-6 w-48 mb-2" /><Skeleton className="h-4 w-64" /></div>
+        </div>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="rounded-2xl p-4 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/80"><Skeleton className="h-9 w-9 mb-3" /><Skeleton className="h-6 w-16 mb-1" /><Skeleton className="h-3 w-12" /></div>)}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <CardSkeleton count={5} />
+            <CardSkeleton count={5} />
+          </div>
         </div>
       </div>
     )
@@ -268,7 +277,7 @@ function DeptDocSection({ tab, user, token, deptDocs, setDeptDocs, loading, setL
       .finally(() => setLoading(false))
   }, [tab, user, token, setDeptDocs, setLoading])
 
-  if (loading) return <div className="flex items-center justify-center gap-2 py-10 text-stone-400"><div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /><span className="text-sm">Loading…</span></div>
+  if (loading) return <div className="p-5 space-y-3"><Skeleton className="h-5 w-48" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-full" /></div>
   if (deptDocs.length === 0) return <div className="py-10 text-center text-sm text-stone-400">{tab === 'department' ? 'No documents in your department.' : 'No documents created by you.'}</div>
   return (
     <ul className="divide-y divide-stone-50 dark:divide-stone-700/60">

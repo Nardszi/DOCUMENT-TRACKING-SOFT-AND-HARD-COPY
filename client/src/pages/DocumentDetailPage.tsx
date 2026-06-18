@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useToast } from '../components/ToastContainer'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
 import DeadlineBadge from '../components/DeadlineBadge'
@@ -12,6 +11,7 @@ import ActionModal from '../components/ActionModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import TrackingLogTimeline from '../components/TrackingLogTimeline'
 import CommentsSection from '../components/CommentsSection'
+import Skeleton from '../components/Skeleton'
 
 interface Department { id: number; code: string; name: string }
 interface User { id: number; full_name: string }
@@ -28,13 +28,13 @@ interface DocumentDetail {
   category: { id: number; name: string }
   originating_department: Department; current_department: Department
   description: string | null; status: string; priority: string
-  deadline: string | null; is_overdue: boolean; created_by: User
+  deadline: string | null; is_overdue: boolean; is_archived: boolean; created_by: User
   created_at: string; updated_at: string
   attachments: Attachment[]; tracking_log: TrackingEntry[]
 }
 
-function PreviewModal({ attachment, docId, token, onClose }: {
-  attachment: Attachment; docId: string; token: string; onClose: () => void
+function PreviewModal({ attachment, docId, onClose }: {
+  attachment: Attachment; docId: string; onClose: () => void
 }) {
   const isImage = attachment.mime_type.startsWith('image/')
   const isPdf = attachment.mime_type === 'application/pdf'
@@ -114,12 +114,14 @@ export default function DocumentDetailPage() {
   const [recallReason, setRecallReason] = useState('')
   const [recalling, setRecalling] = useState(false)
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null)
+  const [archiving, setArchiving] = useState(false)
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
 
   function refetchDoc() {
     if (!id) return
     fetch(`/api/documents/${id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => { if (!r.ok) throw new Error(); return r.json() })
-      .then(data => setDoc(data)).catch(() => {})
+      .then(data => setDoc(data)).catch(() => console.warn('Failed to refetch doc'))
   }
 
   function handleRoutingSuccess(_updatedDoc: { id: number; status: string; current_department: { id: number; code: string; name: string } }) {
@@ -133,7 +135,7 @@ export default function DocumentDetailPage() {
       if (!res.ok) throw new Error()
       setDoc(prev => prev ? { ...prev, status: 'completed' } : prev)
       refetchDoc()
-    } catch {} finally { setCompleting(false); setShowCompleteConfirm(false) }
+    } catch { console.warn('Failed to mark complete') } finally { setCompleting(false); setShowCompleteConfirm(false) }
   }
 
   async function handleDelete() {
@@ -143,6 +145,7 @@ export default function DocumentDetailPage() {
       if (!res.ok) throw new Error()
       navigate('/documents')
     } catch {
+      console.warn('Failed to delete')
       setDeleting(false)
       setShowDeleteConfirm(false)
     }
@@ -169,7 +172,27 @@ export default function DocumentDetailPage() {
     } finally {
       setRecalling(false)
     }
-  }  useEffect(() => {
+  }
+
+  async function handleArchive() {
+    setArchiving(true)
+    try {
+      const res = await fetch(`/api/documents/${id}/archive`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error()
+      refetchDoc()
+    } catch { console.warn('Failed to archive') } finally { setArchiving(false); setShowArchiveConfirm(false) }
+  }
+
+  async function handleRestore() {
+    setArchiving(true)
+    try {
+      const res = await fetch(`/api/documents/${id}/restore`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error()
+      refetchDoc()
+    } catch { console.warn('Failed to restore') } finally { setArchiving(false) }
+  }
+
+  useEffect(() => {
     if (!id) return
     setLoading(true); setError('')
     fetch(`/api/documents/${id}`, { headers: { Authorization: `Bearer ${token}` } })
@@ -180,10 +203,15 @@ export default function DocumentDetailPage() {
   }, [id, token])
 
   if (loading) return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
-      <div className="flex items-center gap-3 text-stone-500 dark:text-stone-400">
-        <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm">Loading…</span>
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
+      <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-6 py-5 border-b border-stone-700/50">
+        <div className="max-w-5xl mx-auto"><Skeleton className="h-6 w-64 mb-2" /><Skeleton className="h-4 w-48" /></div>
+      </div>
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
+        <div className="bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-200 dark:border-stone-700 p-6 space-y-4">
+          <Skeleton className="h-5 w-1/3" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" />
+          <div className="grid grid-cols-2 gap-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-24" /></div>
+        </div>
       </div>
     </div>
   )
@@ -209,6 +237,7 @@ export default function DocumentDetailPage() {
   const canRecall = !isCompleted
     && doc.current_department.id !== doc.originating_department.id
     && (user?.role === 'admin' || user?.departmentId === String(doc.originating_department.id))
+  const canArchive = user?.role === 'admin' || user?.role === 'department_head'
 
   return (
     <>
@@ -234,7 +263,16 @@ export default function DocumentDetailPage() {
             </Link>
             <button
               type="button"
-              onClick={() => window.open(`/api/documents/${doc.id}/qr-cover?token=${token}`, '_blank', 'noopener,noreferrer')}
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/documents/${doc.id}/qr-cover`, { headers: { Authorization: `Bearer ${token}` } })
+                  if (!res.ok) return
+                  const blob = await res.blob()
+                  const url = URL.createObjectURL(blob)
+                  window.open(url, '_blank', 'noopener,noreferrer')
+                  setTimeout(() => URL.revokeObjectURL(url), 60000)
+                } catch {}
+              }}
               className="inline-flex items-center min-h-[40px] px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors">
               Print Cover Sheet
             </button>
@@ -289,6 +327,19 @@ export default function DocumentDetailPage() {
                 className="min-h-[44px] px-3 py-2.5 rounded-xl bg-violet-600 text-sm font-semibold text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
                 Recall
               </button>
+            )}
+            {canArchive && (
+              doc.is_archived ? (
+                <button onClick={handleRestore} disabled={archiving}
+                  className="min-h-[44px] px-3 py-2.5 rounded-xl bg-stone-600 text-sm font-semibold text-white hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
+                  {archiving ? 'Restoring…' : 'Restore'}
+                </button>
+              ) : (
+                <button onClick={() => setShowArchiveConfirm(true)} disabled={archiving}
+                  className="min-h-[44px] px-3 py-2.5 rounded-xl bg-stone-600 text-sm font-semibold text-white hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
+                  Archive
+                </button>
+              )
             )}
           </div>
         </div>
@@ -365,7 +416,7 @@ export default function DocumentDetailPage() {
                               document.body.removeChild(a)
                               URL.revokeObjectURL(url)
                             } catch {
-                              showToast('Failed to download file.', 'error')
+                              console.warn('Download failed')
                             }
                           }}
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
@@ -420,8 +471,14 @@ export default function DocumentDetailPage() {
         confirmLabel="Delete Document" onConfirm={handleDelete} onCancel={() => setShowDeleteConfirm(false)} danger />
     )}
 
+    {showArchiveConfirm && (
+      <ConfirmDialog title="Archive Document"
+        message={`Archive "${doc.title}"? It will be hidden from the default document list and can be restored later.`}
+        confirmLabel="Archive" onConfirm={handleArchive} onCancel={() => setShowArchiveConfirm(false)} />
+    )}
+
     {previewAttachment && id && (
-      <PreviewModal attachment={previewAttachment} docId={id} token={token ?? ''} onClose={() => setPreviewAttachment(null)} />
+      <PreviewModal attachment={previewAttachment} docId={id} onClose={() => setPreviewAttachment(null)} />
     )}
 
     {showRecallConfirm && (

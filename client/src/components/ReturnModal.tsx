@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ConfirmDialog from './ConfirmDialog'
+import { useFocusTrap } from '../utils/useFocusTrap'
 
 interface UpdatedDoc {
   id: number
@@ -62,9 +63,11 @@ export default function ReturnModal({ documentId, token, onSuccess, onClose }: R
     }
   }
 
+  const trapRef = useFocusTrap(true)
   return (
     <>
       <div
+        ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="return-modal-title"

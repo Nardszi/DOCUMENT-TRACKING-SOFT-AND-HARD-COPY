@@ -965,7 +965,6 @@ function TemplateManagement({ token }: TemplateManagementProps) {
   const [deactivateTarget, setDeactivateTarget] = useState<Template | null>(null)
 
   const catMap = Object.fromEntries(categories.map((c) => [c.id, c.name]))
-  const deptMap = Object.fromEntries(departments.map((d) => [d.id, d.code]))
 
   const fetchData = useCallback(async () => {
     setLoading(true)

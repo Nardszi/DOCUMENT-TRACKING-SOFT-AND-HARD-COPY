@@ -165,20 +165,9 @@ router.get('/', authenticate, async (req, res, next) => {
 })
 
 // GET /:id/qr-cover
-router.get('/:id/qr-cover', async (req, res, next) => {
+router.get('/:id/qr-cover', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params
-    const token = req.query.token
-    if (!token) {
-      return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Token query param required.' } })
-    }
-    try {
-      const jwt = await import('jsonwebtoken')
-      const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
-      jwt.default.verify(token, JWT_SECRET)
-    } catch {
-      return res.status(401).json({ error: { code: 'INVALID_TOKEN', message: 'Invalid or expired token.' } })
-    }
     const result = await pool.query(
       'SELECT d.id, d.tracking_number, d.title, d.status, d.created_at, od.name AS originating_department_name' +
       ' FROM documents d JOIN departments od ON od.id = d.originating_department_id WHERE d.id = $1', [id])

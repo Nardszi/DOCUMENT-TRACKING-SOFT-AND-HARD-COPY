@@ -37,7 +37,7 @@ export default function ReportsPage() {
     ]).then(([depts, cats]) => {
       setDepartments(Array.isArray(depts) ? depts : [])
       setCategories(Array.isArray(cats) ? cats : [])
-    }).catch(() => {})
+    }).catch(() => console.warn('[Reports] Failed to load data'))
   }, [token])
 
   if (user?.role !== 'department_head' && user?.role !== 'admin') {

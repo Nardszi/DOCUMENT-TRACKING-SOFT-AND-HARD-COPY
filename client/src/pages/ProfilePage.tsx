@@ -102,7 +102,7 @@ export default function ProfilePage() {
         const dept = Array.isArray(depts) ? depts.find((d) => String(d.id) === String(user.departmentId)) : null
         if (dept) setDepartmentName(dept.name)
       })
-      .catch(() => {})
+      .catch(() => console.warn('[Profile] Failed to load'))
   }, [token, user?.departmentId])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,23 +1,23 @@
 -- Migration 001: Initial schema for NONECO Document Tracking System
 
 -- Departments (seeded, not user-managed)
-CREATE TABLE departments (
+CREATE TABLE IF NOT EXISTS departments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(10) NOT NULL UNIQUE,
     name VARCHAR(100) NOT NULL
 );
 
 -- Document categories
-CREATE TABLE document_categories (
+CREATE TABLE IF NOT EXISTS document_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL UNIQUE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- Users
-CREATE TYPE user_role AS ENUM ('staff', 'department_head', 'admin');
+DO $$ BEGIN CREATE TYPE user_role AS ENUM ('staff', 'department_head', 'admin'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -31,10 +31,10 @@ CREATE TABLE users (
 );
 
 -- Documents
-CREATE TYPE doc_status AS ENUM ('pending', 'in_progress', 'forwarded', 'returned', 'completed');
-CREATE TYPE doc_priority AS ENUM ('low', 'normal', 'high', 'urgent');
+DO $$ BEGIN CREATE TYPE doc_status AS ENUM ('pending', 'in_progress', 'forwarded', 'returned', 'completed'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE doc_priority AS ENUM ('low', 'normal', 'high', 'urgent'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
-CREATE TABLE documents (
+CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tracking_number VARCHAR(20) NOT NULL UNIQUE,
     title VARCHAR(255) NOT NULL,
@@ -50,13 +50,13 @@ CREATE TABLE documents (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_documents_status ON documents(status);
-CREATE INDEX idx_documents_current_dept ON documents(current_department_id);
-CREATE INDEX idx_documents_tracking_number ON documents(tracking_number);
-CREATE INDEX idx_documents_deadline ON documents(deadline) WHERE deadline IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
+CREATE INDEX IF NOT EXISTS idx_documents_current_dept ON documents(current_department_id);
+CREATE INDEX IF NOT EXISTS idx_documents_tracking_number ON documents(tracking_number);
+CREATE INDEX IF NOT EXISTS idx_documents_deadline ON documents(deadline) WHERE deadline IS NOT NULL;
 
 -- Tracking log (immutable)
-CREATE TABLE tracking_log (
+CREATE TABLE IF NOT EXISTS tracking_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID NOT NULL REFERENCES documents(id),
     user_id UUID NOT NULL REFERENCES users(id),
@@ -67,10 +67,10 @@ CREATE TABLE tracking_log (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_tracking_log_document ON tracking_log(document_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_tracking_log_document ON tracking_log(document_id, created_at);
 
 -- Routings
-CREATE TABLE routings (
+CREATE TABLE IF NOT EXISTS routings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID NOT NULL REFERENCES documents(id),
     from_department_id UUID NOT NULL REFERENCES departments(id),
@@ -82,14 +82,14 @@ CREATE TABLE routings (
 );
 
 -- CC routing
-CREATE TABLE routing_cc (
+CREATE TABLE IF NOT EXISTS routing_cc (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     routing_id UUID NOT NULL REFERENCES routings(id),
     department_id UUID NOT NULL REFERENCES departments(id)
 );
 
 -- Attachments
-CREATE TABLE attachments (
+CREATE TABLE IF NOT EXISTS attachments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID NOT NULL REFERENCES documents(id),
     filename VARCHAR(255) NOT NULL,
@@ -102,7 +102,7 @@ CREATE TABLE attachments (
 );
 
 -- Notifications
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
     document_id UUID REFERENCES documents(id),
@@ -113,16 +113,16 @@ CREATE TABLE notifications (
     expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
 );
 
-CREATE INDEX idx_notifications_user ON notifications(user_id, is_read, created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at);
 
 -- System settings (key-value)
-CREATE TABLE system_settings (
+CREATE TABLE IF NOT EXISTS system_settings (
     key VARCHAR(100) PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO system_settings (key, value) VALUES ('email_notifications_enabled', 'true');
+INSERT INTO system_settings (key, value) VALUES ('email_notifications_enabled', 'true') ON CONFLICT (key) DO NOTHING;
 
 -- -----------------------------------------------------------------------
 -- Seed: Seven NONECO departments
@@ -134,7 +134,8 @@ INSERT INTO departments (code, name) VALUES
     ('AOD',   'Area Operation Department'),
     ('CITET', 'Corporate Planning, Information Technology and Energy Trading Department'),
     ('FSD',   'Financial Services Department'),
-    ('IAD',   'Internal Audit Department');
+    ('IAD',   'Internal Audit Department')
+ON CONFLICT (code) DO NOTHING;
 
 -- -----------------------------------------------------------------------
 -- Seed: Default document categories (Requirement 13.1)
@@ -146,13 +147,13 @@ INSERT INTO document_categories (name) VALUES
     ('Purchase Order'),
     ('Contract'),
     ('Report'),
-    ('Others');
+    ('Others')
+ON CONFLICT (name) DO NOTHING;
 
 -- -----------------------------------------------------------------------
 -- Daily sequence helper for tracking numbers (NONECO-YYYYMMDD-XXXXX)
 -- Uses a table-based counter to avoid per-day sequence creation overhead.
--- -----------------------------------------------------------------------
-CREATE TABLE tracking_number_sequences (
+CREATE TABLE IF NOT EXISTS tracking_number_sequences (
     date_key CHAR(8) PRIMARY KEY,  -- YYYYMMDD
     last_seq INTEGER NOT NULL DEFAULT 0
 );

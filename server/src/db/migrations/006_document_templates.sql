@@ -1,5 +1,5 @@
 -- Migration 006: Document templates
-CREATE TABLE document_templates (
+CREATE TABLE IF NOT EXISTS document_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(150) NOT NULL,
     title_prefix VARCHAR(255),

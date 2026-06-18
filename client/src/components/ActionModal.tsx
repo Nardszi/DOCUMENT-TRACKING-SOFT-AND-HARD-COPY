@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useFocusTrap } from '../utils/useFocusTrap'
 
 const ACTION_TYPES = ['Received', 'Reviewed', 'Approved', 'Returned'] as const
 type ActionType = (typeof ACTION_TYPES)[number]
@@ -57,8 +58,10 @@ export default function ActionModal({ documentId, token, onSuccess, onClose }: A
     }
   }
 
+  const trapRef = useFocusTrap(true)
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="action-modal-title"
