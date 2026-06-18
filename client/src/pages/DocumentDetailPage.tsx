@@ -58,7 +58,7 @@ function PreviewModal({ attachment, docId, onClose }: {
           {isImage ? (
             <img src={previewUrl} alt={attachment.original_name} className="max-w-full max-h-full object-contain rounded-lg" />
           ) : isPdf ? (
-            <iframe src={previewUrl} title={attachment.original_name} className="w-full h-full rounded-lg" style={{ minHeight: '70vh' }} />
+            <iframe src={previewUrl} title={attachment.original_name} className="w-full h-full rounded-lg min-h-[300px] sm:min-h-[60vh]" />
           ) : (
             <div className="text-center text-stone-500 dark:text-stone-400">
               <svg className="w-12 h-12 mx-auto mb-3 text-stone-300 dark:text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -436,7 +436,7 @@ export default function DocumentDetailPage() {
                 {doc.attachments.length > 0 && (
                   <ul className="divide-y divide-stone-100 dark:divide-stone-700/60 mb-4">
                     {doc.attachments.map(att => (
-                      <li key={att.id} className="py-3 flex items-center justify-between gap-3">
+                      <li key={att.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">{att.original_name}</p>
                           <p className="text-xs text-stone-500 dark:text-stone-400">{formatBytes(att.file_size_bytes)} · {att.uploaded_by.full_name} · {formatDateTime(att.uploaded_at)}</p>

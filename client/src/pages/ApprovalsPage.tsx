@@ -240,17 +240,17 @@ export default function ApprovalsPage() {
         ) : (
           <div className="space-y-2">
             {pending.map(p => (
-              <div key={p.id} className="bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-200 dark:border-stone-700 p-4 flex items-center justify-between gap-4">
-                <div className="min-w-0">
+              <div key={p.id} className="bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-200 dark:border-stone-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">{p.title}</p>
                   <p className="text-xs text-stone-500 dark:text-stone-400">
                     {p.tracking_number} &middot; Step {p.step_order}: {p.label} &middot; by {p.creator_name} &middot; {formatDateTime(p.created_at)}
                   </p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={() => navigate(`/documents/${p.document_id}`)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">View</button>
-                  <button onClick={() => handleApprove(p.id)} disabled={actionLoading === p.id} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Approve</button>
-                  <button onClick={() => handleReject(p.id)} disabled={actionLoading === p.id} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Reject</button>
+                  <button onClick={() => navigate(`/documents/${p.document_id}`)} className="min-h-[36px] px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">View</button>
+                  <button onClick={() => handleApprove(p.id)} disabled={actionLoading === p.id} className="min-h-[36px] px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">Approve</button>
+                  <button onClick={() => handleReject(p.id)} disabled={actionLoading === p.id} className="min-h-[36px] px-3 py-1.5 text-xs font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Reject</button>
                 </div>
               </div>
             ))}
@@ -289,17 +289,17 @@ export default function ApprovalsPage() {
             <div className="space-y-2">
               {flows.map(f => (
                 <div key={f.id} className="bg-white dark:bg-stone-800/80 rounded-2xl border border-stone-200 dark:border-stone-700 overflow-hidden">
-                  <div className="p-4 flex items-center justify-between gap-4">
-                    <div className="min-w-0">
+                  <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{f.name}</p>
                       {f.description && <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{f.description}</p>}
                       <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">by {f.created_by_name}</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${f.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400'}`}>{f.is_active ? 'Active' : 'Inactive'}</span>
-                      <button onClick={() => loadSteps(f.id)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">{expandedFlow === f.id ? 'Collapse' : 'Steps'}</button>
-                      <button onClick={() => handleToggleActive(f)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">{f.is_active ? 'Deactivate' : 'Activate'}</button>
-                      <button onClick={() => setDeleteFlowId(f.id)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
+                      <button onClick={() => loadSteps(f.id)} className="min-h-[36px] px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">{expandedFlow === f.id ? 'Collapse' : 'Steps'}</button>
+                      <button onClick={() => handleToggleActive(f)} className="min-h-[36px] px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">{f.is_active ? 'Deactivate' : 'Activate'}</button>
+                      <button onClick={() => setDeleteFlowId(f.id)} className="min-h-[36px] px-3 py-1.5 text-xs font-medium rounded-xl border border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
                     </div>
                   </div>
                   {expandedFlow === f.id && (
