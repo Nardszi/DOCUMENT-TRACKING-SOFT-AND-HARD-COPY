@@ -2,6 +2,5 @@
   <defs>
     <clipPath id="c"><circle cx="50" cy="50" r="50"/></clipPath>
   </defs>
-  <circle cx="50" cy="50" r="50" fill="#f59e0b"/>
   <image href="/noneco-logo.png" x="0" y="0" width="100" height="100" clip-path="url(#c)" preserveAspectRatio="xMidYMid slice"/>
 </svg>
