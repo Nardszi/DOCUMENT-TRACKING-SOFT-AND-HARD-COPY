@@ -504,18 +504,18 @@ export default function DocumentDetailPage() {
                               Preview
                             </button>
                           )}
-                          <button onClick={async () => {
-                            try {
-                              const downloadUrl = `/api/documents/${doc.id}/attachments/${att.id}?token=${encodeURIComponent(token ?? '')}`
-                              const a = document.createElement('a')
-                              a.href = downloadUrl
-                              a.download = att.original_name
-                              document.body.appendChild(a)
-                              a.click()
-                              document.body.removeChild(a)
-                            } catch {
-                              alert('Failed to download attachment.')
-                            }
+                          <button onClick={() => {
+                            const form = document.createElement('form')
+                            form.method = 'GET'
+                            form.target = '_blank'
+                            form.action = `/api/documents/${doc.id}/attachments/${att.id}`
+                            const input = document.createElement('input')
+                            input.name = 'token'
+                            input.value = token ?? ''
+                            form.appendChild(input)
+                            document.body.appendChild(form)
+                            form.submit()
+                            document.body.removeChild(form)
                           }}
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                             Download
