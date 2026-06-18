@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface Department { id: string; code: string; name: string }
 interface Category { id: string; name: string }
@@ -14,6 +15,7 @@ const REPORT_TYPES = [
 const fieldCls = 'w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 min-h-[40px] dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100 transition-colors'
 
 export default function ReportsPage() {
+  useDocumentTitle('Reports')
   const { user, token } = useAuth()
   const [departments, setDepartments] = useState<Department[]>([])
   const [categories, setCategories] = useState<Category[]>([])

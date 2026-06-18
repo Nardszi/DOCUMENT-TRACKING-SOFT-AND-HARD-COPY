@@ -12,6 +12,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import TrackingLogTimeline from '../components/TrackingLogTimeline'
 import CommentsSection from '../components/CommentsSection'
 import Skeleton from '../components/Skeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface Department { id: number; code: string; name: string }
 interface User { id: number; full_name: string }
@@ -133,6 +134,7 @@ function InfoField({ label, children }: { label: string; children: React.ReactNo
 }
 
 export default function DocumentDetailPage() {
+  useDocumentTitle('Document Detail')
   const { id } = useParams<{ id: string }>()
   const { token, user } = useAuth()
   const navigate = useNavigate()

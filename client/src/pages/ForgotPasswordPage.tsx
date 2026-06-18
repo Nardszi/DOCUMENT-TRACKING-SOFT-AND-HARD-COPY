@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export default function ForgotPasswordPage() {
+  useDocumentTitle('Forgot Password')
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { CardSkeleton } from '../components/Skeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface Notification {
   id: string; document_id: string | null; event_type: string
@@ -90,6 +91,7 @@ function groupByDate(notifications: Notification[]): [string, Notification[]][] 
 }
 
 export default function NotificationsPage() {
+  useDocumentTitle('Notifications')
   const { token } = useAuth()
   const { refreshUnreadCount } = useNotifications()
   const navigate = useNavigate()

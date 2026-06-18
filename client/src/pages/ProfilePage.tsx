@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/ToastContainer'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface FormState {
   current_password: string
@@ -113,6 +114,7 @@ function PasswordField({
 }
 
 export default function ProfilePage() {
+  useDocumentTitle('Profile')
   const { user, token, login } = useAuth()
   const { showToast } = useToast()
 

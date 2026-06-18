@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { TableSkeleton } from '../components/Skeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface AuditEntry {
   id: string
@@ -56,6 +57,7 @@ const inputCls = 'rounded-xl border border-stone-200 px-3.5 py-2 text-sm bg-ston
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function AuditLogPage() {
+  useDocumentTitle('Audit Log')
   const { user, token } = useAuth()
 
   const [entries, setEntries]       = useState<AuditEntry[]>([])

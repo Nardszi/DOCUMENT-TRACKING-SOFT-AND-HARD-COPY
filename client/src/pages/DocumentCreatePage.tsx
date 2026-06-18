@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import Skeleton from '../components/Skeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const DRAFT_KEY = 'noneco_doc_draft'
 const AUTOSAVE_INTERVAL = 30000
@@ -50,6 +51,7 @@ const inputCls = (hasError: boolean) =>
   }`
 
 export default function DocumentCreatePage() {
+  useDocumentTitle('New Document')
   const { token } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState<FormData>(INITIAL_FORM)

@@ -7,6 +7,7 @@ import DeadlineBadge from '../components/DeadlineBadge'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useToast } from '../components/ToastContainer'
 import { TableSkeleton } from '../components/Skeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface Category { id: number; name: string }
 interface Department { id: number; code: string; name: string }
@@ -35,6 +36,7 @@ function formatUpdated(dateStr: string) {
 const fieldCls = 'rounded-xl border border-stone-200 px-3 py-2 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[40px] w-full dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100 transition-all'
 
 export default function DocumentListPage() {
+  useDocumentTitle('Documents')
   const { token, user } = useAuth()
   const { showToast } = useToast()
   const navigate = useNavigate()

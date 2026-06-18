@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Skeleton from '../components/Skeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface Department { id: number; code: string; name: string }
 
 export default function RegisterPage() {
+  useDocumentTitle('Register')
   const navigate = useNavigate()
   const [departments, setDepartments] = useState<Department[]>([])
   const [form, setForm] = useState({ username: '', password: '', confirm_password: '', email: '', full_name: '', department_id: '' })

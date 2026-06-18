@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface PendingApproval {
   id: string
@@ -44,6 +45,7 @@ function formatDateTime(iso: string) {
 }
 
 export default function ApprovalsPage() {
+  useDocumentTitle('Approvals')
   const { token, user } = useAuth()
   const navigate = useNavigate()
   const [pending, setPending] = useState<PendingApproval[]>([])

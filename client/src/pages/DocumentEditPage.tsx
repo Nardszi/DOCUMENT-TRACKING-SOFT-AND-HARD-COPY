@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import Skeleton from '../components/Skeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface Category {
   id: number
@@ -36,6 +37,7 @@ interface DocumentDetail {
 }
 
 export default function DocumentEditPage() {
+  useDocumentTitle('Edit Document')
   const { id } = useParams<{ id: string }>()
   const { token } = useAuth()
   const navigate = useNavigate()

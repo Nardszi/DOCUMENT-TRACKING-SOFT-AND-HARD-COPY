@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1138,6 +1139,7 @@ function TemplateManagement({ token }: TemplateManagementProps) {
 type Tab = 'users' | 'categories' | 'templates' | 'audit-log'
 
 export default function AdminPage() {
+  useDocumentTitle('Admin')
   const { user, token } = useAuth()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<Tab>('users')

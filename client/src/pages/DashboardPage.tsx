@@ -5,6 +5,7 @@ import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
 import DeadlineBadge from '../components/DeadlineBadge'
 import Skeleton, { CardSkeleton } from '../components/Skeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 interface Department { id: string; code: string; name: string }
 interface DeadlineDoc { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string; current_department: Department }
@@ -44,6 +45,7 @@ function StatCard({ label, count, linkTo, accent, icon, iconBg }: StatCardProps)
 }
 
 export default function DashboardPage() {
+  useDocumentTitle('Dashboard')
   const { user, token } = useAuth()
   const navigate = useNavigate()
   const [data, setData] = useState<DashboardData | null>(null)
