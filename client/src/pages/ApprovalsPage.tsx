@@ -59,6 +59,8 @@ export default function ApprovalsPage() {
   const [stepLabel, setStepLabel] = useState('')
   const [addingStep, setAddingStep] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [deleteFlowId, setDeleteFlowId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const isAdmin = user?.role === 'admin'
 
@@ -167,6 +169,24 @@ export default function ApprovalsPage() {
       setFlows(prev => prev.map(f => f.id === flow.id ? { ...f, is_active: !f.is_active } : f))
     } catch (err) {
       console.warn('Toggle active failed', err)
+    }
+  }
+
+  async function handleDeleteFlow() {
+    if (!deleteFlowId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/approvals/flows/${deleteFlowId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed to delete flow')
+      setFlows(prev => prev.filter(f => f.id !== deleteFlowId))
+      setDeleteFlowId(null)
+    } catch (err) {
+      console.warn('Delete flow failed', err)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -279,6 +299,7 @@ export default function ApprovalsPage() {
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${f.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-stone-100 text-stone-500 dark:bg-stone-700 dark:text-stone-400'}`}>{f.is_active ? 'Active' : 'Inactive'}</span>
                       <button onClick={() => loadSteps(f.id)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">{expandedFlow === f.id ? 'Collapse' : 'Steps'}</button>
                       <button onClick={() => handleToggleActive(f)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">{f.is_active ? 'Deactivate' : 'Activate'}</button>
+                      <button onClick={() => setDeleteFlowId(f.id)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
                     </div>
                   </div>
                   {expandedFlow === f.id && (
@@ -313,6 +334,28 @@ export default function ApprovalsPage() {
             </div>
           )}
         </section>
+      )}
+
+      {/* Delete flow confirmation */}
+      {deleteFlowId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteFlowId(null)} aria-hidden="true" />
+          <div className="relative w-full max-w-sm rounded-2xl bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shadow-2xl p-6 animate-slide-up">
+            <div className="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center mb-4">
+              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100 mb-1">Delete approval flow?</h2>
+            <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
+              This action cannot be undone. Any documents using this flow will lose their approval assignments.
+            </p>
+            <div className="flex gap-2.5">
+              <button onClick={() => setDeleteFlowId(null)} className="flex-1 min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-600 focus:outline-none focus:ring-2 focus:ring-stone-300 transition-all">Cancel</button>
+              <button onClick={handleDeleteFlow} disabled={deleting} className="flex-1 min-h-[40px] px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-stone-800 transition-all shadow-sm disabled:opacity-50">{deleting ? 'Deleting…' : 'Delete'}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
