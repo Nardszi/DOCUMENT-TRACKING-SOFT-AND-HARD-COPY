@@ -284,16 +284,17 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Help text */}
-          <p className="mt-6 text-center text-xs text-stone-400">
-            Don't have an account?{' '}
-            <a href="/register" className="text-amber-500 hover:text-amber-400 font-semibold">
-              Sign up
+          {/* Sign up link */}
+          <div className="mt-6 pt-5 border-t border-white/10 lg:border-stone-200">
+            <p className="text-center text-xs text-stone-300 lg:text-stone-500 mb-3">Don't have an account?</p>
+            <a
+              href="/register"
+              className="block w-full min-h-[44px] leading-[44px] rounded-xl border-2 border-amber-500/60 hover:border-amber-500 text-amber-400 hover:text-amber-300 lg:text-amber-600 lg:hover:text-amber-700 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+            >
+              Sign Up
             </a>
-          </p>
-          <p className="mt-2 text-center text-xs text-stone-400">
-            For account issues, contact your system administrator.
-          </p>
+            <p className="mt-3 text-center text-[11px] text-stone-500">For account issues, contact your system administrator.</p>
+          </div>
         </div>
 
         {/* Footer */}
