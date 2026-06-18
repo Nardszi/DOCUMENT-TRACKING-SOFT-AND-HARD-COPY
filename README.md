@@ -431,6 +431,180 @@ client/dist/
 
 ---
 
+## Frontend Enhancement Roadmap
+
+| # | Enhancement | Impact | Effort | Priority |
+|---|-------------|--------|--------|----------|
+| 1 | Adopt `utils/api.ts` for all API calls | High | Medium | P0 |
+| 2 | React Query for server state | High | Medium | P0 |
+| 3 | Code splitting / lazy loading routes | High | Low | P0 |
+| 4 | React Hook Form for all forms | Medium | Medium | P1 |
+| 5 | Reusable `<DataTable>` component | Medium | High | P1 |
+| 6 | Reusable `<EmptyState>` component | Low | Low | P1 |
+| 7 | Keyboard navigation for doc list rows | Low | Low | P2 |
+| 8 | Consistent focus-visible rings | Low | Low | P2 |
+| 9 | PWA offline fallback page | Low | Medium | P2 |
+
+### P0 — High Impact, Do First
+
+#### 1. Adopt `utils/api.ts` for all API calls (Medium effort)
+
+**Why:** `api.ts` already exists with auto-refresh on 401, retry on network error, and automatic `Authorization` header injection — but **every page** uses raw `fetch` with manual header boilerplate. This leaves 30+ fetch calls without auto-refresh protection.
+
+**Process:**
+```
+src/pages/          ← 13 files, each uses raw fetch
+src/contexts/       ← 3 files, each uses raw fetch
+src/components/     ← some use raw fetch
+       ↓
+src/utils/api.ts    ← already has: api(url, options)
+```
+
+**Steps:**
+1. Rename `api.ts` → `api.ts` (existing), ensure it's a default export
+2. Replace every `fetch(url, { headers: { Authorization: \`Bearer ${token}\` } })` with `const res = await api(url, { method, body })` — no need to pass token
+3. Remove `token` imports and destructuring from pages that only use it for API calls
+4. Delete the unused `import { useAuth }` from pages that only needed it for the token
+
+**Files to modify:** All 13 pages, 3 contexts, 2-3 components.
+**Pattern:**
+```ts
+// Before
+const { token } = useAuth()
+const res = await fetch('/api/documents', { headers: { Authorization: `Bearer ${token}` } })
+
+// After
+const res = await api('/api/documents')
+```
+
+---
+
+#### 2. React Query for server state (Medium effort)
+
+**Why:** Every page manually manages `loading`, `error`, `data` state with `useState` + `useEffect`. This is ~15 lines of boilerplate per data fetch, with no caching, no background refetch, and no deduplication. React Query eliminates all of it.
+
+**Steps:**
+1. Install: `npm install @tanstack/react-query`
+2. Add `<QueryClientProvider>` in `main.tsx`
+3. Create `hooks/useDocuments.ts`, `hooks/useDocument.ts`, `hooks/useNotifications.ts`, etc.
+4. Convert each page's fetch `useEffect` to a single `useQuery()` call
+5. Use `useMutation()` for creates/updates/deletes to automatically invalidate caches
+
+**Example — Before (DocumentListPage.tsx):**
+```ts
+const [documents, setDocuments] = useState<Document[]>([])
+const [loading, setLoading] = useState(true)
+const [error, setError] = useState('')
+useEffect(() => { fetchDocuments(appliedFilters, page) }, [appliedFilters, page])
+```
+
+**After:**
+```ts
+const { data, isLoading, error } = useQuery({
+  queryKey: ['documents', appliedFilters, page],
+  queryFn: () => api(`/api/documents?${params}`).then(r => r.json()),
+})
+```
+
+**Bonus — Optimistic updates for bulk actions:**
+```ts
+const bulkComplete = useMutation({
+  mutationFn: (ids) => api('/api/documents/bulk-complete', { method: 'POST', body: { ids } }),
+  onMutate: async (ids) => { /* instantly update cache */ },
+  onError: () => { /* rollback cache */ },
+})
+```
+
+**Files to create:** `client/src/hooks/useDocuments.ts`, `useDocument.ts`, `useDashboard.ts`, `useNotifications.ts`, `useAuditLog.ts`
+**Files to modify:** All 13 pages.
+
+---
+
+#### 3. Code splitting / lazy loading (Low effort)
+
+**Why:** The production bundle includes all 13 pages in one chunk. Lazy loading cuts initial JS by ~70%.
+
+**Steps:**
+1. In `App.tsx`, replace static imports with `React.lazy()`:
+
+```ts
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+// ... etc for all routes
+```
+
+2. Wrap `<Routes>` in `<Suspense fallback={<FullPageSkeleton />}>`
+
+**Files to modify:** `App.tsx` only.
+
+---
+
+### P1 — Important, Schedule Next
+
+#### 4. React Hook Form for all forms (Medium effort)
+
+**Why:** Forms use manual `useState` for every field + hand-written validation + change handlers. React Hook Form reduces code by ~60%, handles touched/dirty/errors/tabbing natively, and integrates with Zod for schema validation.
+
+**Files to convert (in priority order):**
+1. `RegisterPage.tsx` — username, email, password x2, department select + per-field blur validation
+2. `DocumentCreatePage.tsx` — title, category, dept, priority, deadline, description, attachments
+3. `DocumentEditPage.tsx` — same fields + unsaved changes tracking
+4. `LoginPage.tsx` — username + password
+5. `ForgotPasswordPage.tsx`, `ResetPasswordPage.tsx` — email / password x2
+
+#### 5. Reusable `<DataTable>` component (High effort)
+
+**Why:** 4 pages implement pagination + sorting + selection from scratch:
+- `DocumentListPage.tsx` (634 lines, 40% is table boilerplate)
+- `AdminPage.tsx` (3 inline tables for users/templates/categories)
+- `AuditLogPage.tsx`
+- `NotificationsPage.tsx`
+
+**Design:**
+```tsx
+<DataTable
+  columns={[
+    { key: 'tracking_number', header: 'Tracking #', render: (v) => <code>{v}</code> },
+    { key: 'title', header: 'Title' },
+    { key: 'status', header: 'Status', render: (v) => <StatusBadge status={v} /> },
+  ]}
+  data={documents}
+  total={total}
+  page={page}
+  onPageChange={setPage}
+  selectable={canBulkAction}
+  selectedIds={selectedIds}
+  onSelectionChange={setSelectedIds}
+  loading={loading}
+/>
+```
+
+#### 6. Reusable `<EmptyState>` component (Low effort)
+
+**Why:** 6+ pages have unique empty-state JSX — icon + title + subtitle. A single component standardizes the look.
+
+```tsx
+<EmptyState icon={DocumentIcon} title="No documents found" subtitle="Try adjusting your filters." />
+```
+
+---
+
+### P2 — Polish / Nice to Have
+
+#### 7. Keyboard navigation for doc list rows
+
+Each card/row should be focusable and open on Enter. Add `tabIndex={0}`, `onKeyDown={e => e.key === 'Enter' && navigate(...)}` to list items.
+
+#### 8. Consistent focus-visible rings
+
+Some interactive elements lack `focus-visible:ring-2` / `focus-visible:ring-amber-400`. Audit all buttons, links, inputs to ensure keyboard users see a focus indicator.
+
+#### 9. PWA offline fallback
+
+The service worker is registered (`main.tsx`) but there's no offline page. Add a cached offline fallback that shows "You're offline. Some features may be unavailable." with cached document data.
+
+---
+
 ## License
 
 This project is proprietary software developed for Northern Negros Electric Cooperative, Inc. (NONECO). All rights reserved.
