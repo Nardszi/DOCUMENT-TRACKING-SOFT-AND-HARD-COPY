@@ -116,15 +116,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/auth/refresh', {
         headers: { Authorization: `Bearer ${currentToken}` },
       })
-      if (!res.ok) { logout(); return null }
+      if (!res.ok) return null
       const data = await res.json()
       login(data.token)
       return data.token
     } catch {
-      logout()
       return null
     }
-  }, [login, logout])
+  }, [login])
 
   const resetTimer = useCallback(() => {
     const now = Date.now()

@@ -6,7 +6,7 @@ const WARNING_BEFORE_MS = 120_000 // 2 minutes
 const REFRESH_BEFORE_MS = 60_000  // 1 minute
 
 export default function SessionManager() {
-  const { token, refreshToken, logout } = useAuth()
+  const { token, refreshToken } = useAuth()
   const { showToast } = useToast()
   const warnedRef = useRef(false)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -40,15 +40,14 @@ export default function SessionManager() {
         if (newToken) {
           showToast('Session refreshed automatically.', 'success')
         } else {
-          showToast('Session expired. Please sign in again.', 'error')
-          logout()
+          showToast('Unable to refresh session. Please save your work and sign in again.', 'warning')
         }
       }, refreshDelay)
       return () => {
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
       }
     }
-  }, [token, refreshToken, logout, showToast])
+  }, [token, refreshToken, showToast])
 
   return null
 }
