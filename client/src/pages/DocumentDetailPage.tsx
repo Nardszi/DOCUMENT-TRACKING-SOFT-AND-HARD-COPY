@@ -504,19 +504,13 @@ export default function DocumentDetailPage() {
                           )}
                           <button onClick={async () => {
                             try {
-                              const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
-                                headers: { Authorization: `Bearer ${token}` },
-                              })
-                              if (!res.ok) throw new Error()
-                              const blob = await res.blob()
-                              const url = URL.createObjectURL(blob)
+                              const downloadUrl = `/api/documents/${doc.id}/attachments/${att.id}?token=${encodeURIComponent(token ?? '')}`
                               const a = document.createElement('a')
-                              a.href = url
+                              a.href = downloadUrl
                               a.download = att.original_name
                               document.body.appendChild(a)
                               a.click()
                               document.body.removeChild(a)
-                              setTimeout(() => URL.revokeObjectURL(url), 5000)
                             } catch {
                               alert('Failed to download attachment.')
                             }

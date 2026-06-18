@@ -8,13 +8,16 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
  */
 export async function authenticate(req, res, next) {
   const authHeader = req.headers['authorization']
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  let token
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.slice(7)
+  } else if (req.query.token) {
+    token = req.query.token
+  } else {
     return res.status(401).json({
       error: { code: 'UNAUTHORIZED', message: 'Missing or malformed Authorization header.' },
     })
   }
-
-  const token = authHeader.slice(7)
   let payload
   try {
     payload = jwt.verify(token, JWT_SECRET)
