@@ -224,17 +224,13 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* ── LEFT: Identity card ── */}
           <div className="lg:col-span-4">
-            <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700 sticky top-24">
-              <div className="relative h-24 bg-gradient-to-r from-amber-600 via-amber-500 to-orange-500 dark:from-amber-700 dark:via-amber-600 dark:to-orange-600">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.2),transparent_60%)]" />
-              </div>
-              <div className="px-6 pb-6 -mt-12">
-                <div className="mb-4">
-                  <div className="w-24 h-24 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-stone-800">
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-card dark:bg-stone-800/80 dark:border-stone-700 sticky top-24">
+              <div className="h-24 bg-gradient-to-r from-amber-600 to-amber-500 dark:from-amber-700 dark:to-amber-600 rounded-t-2xl" />
+              <div className="px-6 pb-6 pt-6">
+                <div className="w-24 h-24 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-stone-800">
                     <span className="text-3xl font-bold text-white tracking-tight select-none">{initials}</span>
                   </div>
-                </div>
-                <h2 className="text-xl font-bold text-stone-900 dark:text-stone-100 leading-tight">{user?.fullName || '—'}</h2>
+                <h2 className="text-xl font-bold text-stone-900 dark:text-stone-100 leading-tight mt-3">{user?.fullName || '—'}</h2>
                 <div className="flex items-center gap-2 mt-2">
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${roleCfg.bg} ${roleCfg.text} ${roleCfg.ring}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${roleCfg.dot}`} />
