@@ -2,6 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
+import { z } from 'zod'
 import pool from '../db/pool.js'
 import { authenticate } from '../middleware/auth.js'
 import { recordAudit } from '../utils/audit.js'
@@ -11,12 +12,19 @@ const router = Router()
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
 const APP_URL = process.env.APP_URL || 'http://localhost:5173'
 
+const loginSchema = z.object({ username: z.string().min(1, 'Username is required'), password: z.string().min(1, 'Password is required') })
+const registerSchema = z.object({ username: z.string().min(3, 'Username must be at least 3 characters'), password: z.string().min(8, 'Password must be at least 8 characters'), email: z.string().email('Invalid email'), full_name: z.string().min(1, 'Full name is required'), department_id: z.string().min(1, 'Department is required') })
+const resetRequestSchema = z.object({ email: z.string().email('Invalid email') })
+const resetSchema = z.object({ token: z.string().min(1, 'Token is required'), newPassword: z.string().min(8, 'Password must be at least 8 characters') })
+const changePasswordSchema = z.object({ current_password: z.string().min(1), new_password: z.string().min(8, 'Password must be at least 8 characters') })
+
 // POST /api/auth/login
 router.post('/login', async (req, res, next) => {
-  const { username, password } = req.body
-  if (!username || !password) {
-    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Username and password are required.' } })
+  const parsed = loginSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } })
   }
+  const { username, password } = parsed.data
 
   try {
     const { rows } = await pool.query(
@@ -77,12 +85,10 @@ router.post('/logout', authenticate, (req, res) => {
 
 // POST /api/auth/reset-password-request
 router.post('/reset-password-request', async (req, res, next) => {
-  const { email } = req.body
   const safeResponse = { message: 'If that email exists, a reset link has been sent.' }
-
-  if (!email) {
-    return res.json(safeResponse)
-  }
+  const parsed = resetRequestSchema.safeParse(req.body)
+  if (!parsed.success) return res.json(safeResponse)
+  const { email } = parsed.data
 
   try {
     const { rows } = await pool.query('SELECT id, full_name FROM users WHERE email = $1', [email])
@@ -124,15 +130,11 @@ router.post('/reset-password-request', async (req, res, next) => {
 
 // POST /api/auth/reset-password
 router.post('/reset-password', async (req, res, next) => {
-  const { token, newPassword } = req.body
-
-  if (!token || !newPassword) {
-    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Token and newPassword are required.' } })
+  const parsed = resetSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } })
   }
-
-  if (newPassword.length < 8) {
-    return res.status(400).json({ error: { code: 'PASSWORD_TOO_SHORT', message: 'Password must be at least 8 characters.' } })
-  }
+  const { token, newPassword } = parsed.data
 
   try {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
@@ -159,13 +161,11 @@ router.post('/reset-password', async (req, res, next) => {
 
 // POST /api/auth/change-password (authenticated)
 router.post('/change-password', authenticate, async (req, res, next) => {
-  const { current_password, new_password } = req.body
-  if (!current_password || !new_password) {
-    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'current_password and new_password are required.' } })
+  const parsed = changePasswordSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } })
   }
-  if (new_password.length < 8) {
-    return res.status(400).json({ error: { code: 'PASSWORD_TOO_SHORT', message: 'Password must be at least 8 characters.' } })
-  }
+  const { current_password, new_password } = parsed.data
   try {
     const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id])
     if (!rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found.' } })
@@ -179,15 +179,11 @@ router.post('/change-password', authenticate, async (req, res, next) => {
 
 // POST /api/auth/register — self-registration
 router.post('/register', async (req, res, next) => {
-  const { username, password, email, full_name, department_id } = req.body
-  if (!username || !password || !email || !full_name || !department_id) {
-    return res.status(400).json({
-      error: { code: 'BAD_REQUEST', message: 'username, password, email, full_name, and department_id are required.' },
-    })
+  const parsed = registerSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } })
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: { code: 'PASSWORD_TOO_SHORT', message: 'Password must be at least 8 characters.' } })
-  }
+  const { username, password, email, full_name, department_id } = parsed.data
   try {
     const deptResult = await pool.query('SELECT id FROM departments WHERE id = $1', [department_id])
     if (!deptResult.rows.length) {

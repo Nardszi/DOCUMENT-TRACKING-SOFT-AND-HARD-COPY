@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import rateLimit from 'express-rate-limit'
 import { fileURLToPath } from 'url'
 import path from 'path'
 import fs from 'fs'
@@ -21,6 +22,7 @@ import auditLogRoutes from './routes/audit-log.routes.js'
 import templatesRoutes from './routes/templates.routes.js'
 import recallRoutes from './routes/recall.routes.js'
 import profileRoutes from './routes/profile.routes.js'
+import { migrate } from './db/migrate.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isProd = process.env.NODE_ENV === 'production'
@@ -30,6 +32,26 @@ const app = express()
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// ── JWT secret warning ────────────────────────────────────────────────────────
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-in-production') {
+  console.warn('\x1b[33m⚠️  WARNING: JWT_SECRET is not set or is using the default dev secret.\x1b[0m')
+  console.warn('\x1b[33m   Set JWT_SECRET in production to a long random string.\x1b[0m')
+}
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,                   // 20 attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many attempts. Please try again later.' } },
+})
+
+// ── Run pending migrations on startup ─────────────────────────────────────────
+if (process.env.AUTO_MIGRATE !== 'false') {
+  migrate().catch(err => console.error('[migrate] migration failed:', err.message))
+}
 
 // CORS: allow Vite dev server + Vercel production frontend
 // Set CORS_ORIGIN=* to allow any origin (without credentials)
@@ -52,7 +74,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-app.use('/api/auth', authRoutes)
+app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/categories', categoryRoutes)
 app.use('/api/departments', departmentRoutes)

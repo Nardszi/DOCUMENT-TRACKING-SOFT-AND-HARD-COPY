@@ -40,6 +40,8 @@ function formatDoc(row) {
     priority: row.priority,
     deadline: row.deadline,
     is_overdue: row.is_overdue,
+    is_archived: row.is_archived,
+    version: row.version,
     created_by: { id: row.created_by, full_name: row.creator_full_name },
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -51,7 +53,7 @@ const DOC_SELECT_FULL =
   ' d.originating_department_id, od.code AS originating_department_code, od.name AS originating_department_name,' +
   ' d.current_department_id, cd.code AS current_department_code, cd.name AS current_department_name,' +
   ' d.description, d.status, d.priority, d.deadline, d.created_by, u.full_name AS creator_full_name,' +
-  ' d.created_at, d.updated_at,' +
+  ' d.created_at, d.updated_at, d.is_archived, d.version,' +
   " (d.deadline IS NOT NULL AND d.deadline < CURRENT_DATE AND d.status != 'completed') AS is_overdue"
 
 const DOC_JOINS_FULL =
@@ -150,6 +152,7 @@ router.get('/', authenticate, async (req, res, next) => {
     if (req.query.deadline_to)   { params.push(req.query.deadline_to);   whereClauses.push('d.deadline <= $' + params.length) }
     if (req.query.priority)      { params.push(req.query.priority);      whereClauses.push('d.priority = $' + params.length) }
     if (req.query.category_id)   { params.push(req.query.category_id);   whereClauses.push('d.category_id = $' + params.length) }
+    if (req.query.include_archived !== '1') { whereClauses.push("d.is_archived = FALSE") }
     const whereSQL = whereClauses.length ? ' WHERE ' + whereClauses.join(' AND ') : ''
     const countResult = await pool.query('SELECT COUNT(*) AS total' + DOC_JOINS_FULL + whereSQL, params)
     const total = parseInt(countResult.rows[0].total)
@@ -321,6 +324,42 @@ router.get('/:id', authenticate, async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// POST /:id/archive — archive a document (admin or department_head)
+router.post('/:id/archive', authenticate, async (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'department_head')
+    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
+  try {
+    const { id } = req.params
+    const result = await pool.query(
+      "UPDATE documents SET is_archived = TRUE, updated_at = NOW() WHERE id = $1 AND is_archived = FALSE RETURNING id",
+      [id]
+    )
+    if (!result.rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found or already archived.' } })
+    await pool.query(
+      "INSERT INTO tracking_log (document_id, user_id, department_id, event_type, metadata) VALUES ($1, $2, $3, 'archived', $4)",
+      [id, req.user.id, req.user.departmentId, JSON.stringify({ archived_by: req.user.fullName })]
+    )
+    recordAudit(pool, req.user.id, 'document.archived', 'document', id, {})
+    res.json({ message: 'Document archived.' })
+  } catch (err) { next(err) }
+})
+
+// POST /:id/restore — restore an archived document
+router.post('/:id/restore', authenticate, async (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'department_head')
+    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
+  try {
+    const { id } = req.params
+    const result = await pool.query(
+      "UPDATE documents SET is_archived = FALSE, updated_at = NOW() WHERE id = $1 AND is_archived = TRUE RETURNING id",
+      [id]
+    )
+    if (!result.rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found or not archived.' } })
+    recordAudit(pool, req.user.id, 'document.restored', 'document', id, {})
+    res.json({ message: 'Document restored.' })
+  } catch (err) { next(err) }
+})
+
 // DELETE /:id -- delete document and all child records (admin only)
 router.delete('/:id', authenticate, async (req, res, next) => {
   if (req.user.role !== 'admin')
@@ -353,20 +392,27 @@ router.delete('/:id', authenticate, async (req, res, next) => {
   }
 })
 
-// PATCH /:id -- update document fields
+// PATCH /:id -- update document fields (with optimistic locking)
 router.patch('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params
-    const { title, description, deadline, priority, category_id, originating_department_id } = req.body
+    const { title, description, deadline, priority, category_id, originating_department_id, version } = req.body
 
     const scope = buildScopeClause(req.user, 2)
     const checkResult = await pool.query(
-      'SELECT d.id, d.status FROM documents d' + DOC_JOINS_FULL.replace(' FROM documents d', '') + ' WHERE d.id = $1 AND ' + scope.clause,
+      'SELECT d.id, d.status, d.version FROM documents d' + DOC_JOINS_FULL.replace(' FROM documents d', '') + ' WHERE d.id = $1 AND ' + scope.clause,
       [id, ...scope.params])
     if (!checkResult.rows.length)
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
     if (checkResult.rows[0].status === 'completed')
       return res.status(403).json({ error: { code: 'DOCUMENT_COMPLETED', message: 'Cannot modify a completed document.' } })
+
+    if (version !== undefined) {
+      const currentVersion = checkResult.rows[0].version
+      if (version !== currentVersion) {
+        return res.status(409).json({ error: { code: 'VERSION_CONFLICT', message: 'Document was modified by another user. Please refresh and try again.', currentVersion } })
+      }
+    }
 
     if (category_id !== undefined) {
       const catResult = await pool.query('SELECT id FROM document_categories WHERE id = $1 AND is_active = true', [category_id])
@@ -400,7 +446,7 @@ router.patch('/:id', authenticate, async (req, res, next) => {
     if (setCols.length === 0)
       return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'No updatable fields provided.' } })
 
-    setCols.push('updated_at = NOW()')
+    setCols.push('version = version + 1', 'updated_at = NOW()')
     values.push(id)
     const whereParam = '$' + values.length
 
