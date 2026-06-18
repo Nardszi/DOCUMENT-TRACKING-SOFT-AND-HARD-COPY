@@ -7,31 +7,17 @@ import DeadlineBadge from '../components/DeadlineBadge'
 import Skeleton, { CardSkeleton } from '../components/Skeleton'
 
 interface Department { id: string; code: string; name: string }
-interface RecentDoc { id: string; tracking_number: string; title: string; status: string; priority: string; current_department: Department; updated_at: string }
 interface DeadlineDoc { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string; current_department: Department }
 type DeptTab = 'my' | 'department'
 interface DeptDoc { id: number; tracking_number: string; title: string; status: string; priority: string; deadline: string | null; is_overdue: boolean; current_department: Department; updated_at: string }
 interface DashboardData {
   counts: { total: number; pending: number; in_progress: number; forwarded: number; returned: number; overdue: number; completed: number }
-  recently_updated: RecentDoc[]
   approaching_deadlines: DeadlineDoc[]
   bottleneck: { department: Department; open_count: number } | null
 }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-function relativeTime(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `${days}d ago`
-  return formatDate(iso)
 }
 
 interface StatCardProps {
@@ -110,7 +96,7 @@ export default function DashboardPage() {
   }
 
   if (!data) return null
-  const { counts, recently_updated, approaching_deadlines, bottleneck } = data
+  const { counts, approaching_deadlines, bottleneck } = data
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
@@ -208,55 +194,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Two lists */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Recently Updated */}
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
-            <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-stone-100 dark:bg-stone-700 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-stone-500 dark:text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Recently Updated</h2>
-                  <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">Last 10 documents</p>
-                </div>
-              </div>
-              <Link to="/documents" className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors">View all →</Link>
-            </div>
-            {recently_updated.length === 0 ? (
-              <div className="px-5 py-10 text-center">
-                <svg className="w-8 h-8 mx-auto mb-2 text-stone-300 dark:text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-sm text-stone-400 dark:text-stone-500">No documents yet.</p>
-              </div>
-            ) : (
-              <ul className="divide-y divide-stone-50 dark:divide-stone-700/60">
-                {recently_updated.map(doc => (
-                  <li key={doc.id}>
-                    <button onClick={() => navigate(`/documents/${doc.id}`)}
-                      className="w-full text-left px-5 py-3 min-h-[52px] hover:bg-stone-50 dark:hover:bg-stone-700/40 transition-colors group">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 shrink-0 bg-stone-100 dark:bg-stone-700 px-1.5 py-0.5 rounded">{doc.tracking_number}</span>
-                        <span className="text-sm font-medium text-stone-800 dark:text-stone-100 truncate flex-1 min-w-0 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">{doc.title}</span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <StatusBadge status={doc.status} />
-                        <PriorityBadge priority={doc.priority} />
-                        <span className="text-xs text-stone-400 dark:text-stone-500 ml-auto">{relativeTime(doc.updated_at)}</span>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Approaching Deadlines */}
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
+        {/* Approaching Deadlines */}
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
             <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700 flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0">
                 <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -296,7 +235,6 @@ export default function DashboardPage() {
               </ul>
             )}
           </div>
-        </div>
 
         {/* My Department / My Documents */}
         <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
