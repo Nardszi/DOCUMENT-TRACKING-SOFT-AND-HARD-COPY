@@ -5,9 +5,11 @@ import crypto from 'crypto'
 import pool from '../db/pool.js'
 import { authenticate } from '../middleware/auth.js'
 import { recordAudit } from '../utils/audit.js'
+import { isEmailEnabled, sendPasswordResetEmail } from '../services/email.service.js'
 
 const router = Router()
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
+const APP_URL = process.env.APP_URL || 'http://localhost:5173'
 
 // POST /api/auth/login
 router.post('/login', async (req, res, next) => {
@@ -52,6 +54,21 @@ router.post('/login', async (req, res, next) => {
   }
 })
 
+// POST /api/auth/refresh — issue new token if current is still valid
+router.post('/refresh', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT id, role, department_id, full_name FROM users WHERE id = $1 AND is_active = TRUE', [req.user.id])
+    if (!rows.length) return res.status(401).json({ error: { code: 'ACCOUNT_DEACTIVATED', message: 'Account no longer active.' } })
+    const u = rows[0]
+    const newToken = jwt.sign(
+      { sub: u.id, role: u.role, departmentId: u.department_id, fullName: u.full_name },
+      JWT_SECRET,
+      { expiresIn: '30m' }
+    )
+    res.json({ token: newToken })
+  } catch (err) { next(err) }
+})
+
 // POST /api/auth/logout
 router.post('/logout', authenticate, (req, res) => {
   recordAudit(pool, req.user.id, 'user.logout', 'user', req.user.id, null)
@@ -68,7 +85,7 @@ router.post('/reset-password-request', async (req, res, next) => {
   }
 
   try {
-    const { rows } = await pool.query('SELECT id FROM users WHERE email = $1', [email])
+    const { rows } = await pool.query('SELECT id, full_name FROM users WHERE email = $1', [email])
     if (!rows.length) {
       return res.json(safeResponse)
     }
@@ -85,8 +102,19 @@ router.post('/reset-password-request', async (req, res, next) => {
       [userId, tokenHash, expiresAt]
     )
 
-    // In a real system, send rawToken via email here.
-    // For now, we just store the hash.
+    // Send reset link via email — best-effort
+    try {
+      const emailEnabled = await isEmailEnabled()
+      if (emailEnabled) {
+        const resetUrl = `${APP_URL}/reset-password?token=${rawToken}`
+        await sendPasswordResetEmail(email, {
+          fullName: rows[0].full_name,
+          resetUrl,
+        })
+      }
+    } catch (emailErr) {
+      console.warn('[auth] password reset email failed:', emailErr.message)
+    }
 
     res.json(safeResponse)
   } catch (err) {

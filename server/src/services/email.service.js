@@ -205,6 +205,24 @@ export async function sendRecalledEmail(userEmail, { documentTitle, trackingNumb
   })
 }
 
+// ── Email: password reset ─────────────────────────────────────────────────────
+export async function sendPasswordResetEmail(userEmail, { fullName, resetUrl }) {
+  const transporter = createTransporter()
+  if (!transporter) return
+  const body = `
+    <p style="font-size:14px;color:#374151;margin:0 0 8px;">Hi ${fullName},</p>
+    <p style="font-size:14px;color:#374151;margin:0 0 16px;">We received a request to reset your password for the NONECO Document Tracking System. Click the button below to set a new password. This link expires in 1 hour.</p>
+    ${actionButton(resetUrl, 'Reset Password', '#7c3aed')}
+    <p style="font-size:13px;color:#9ca3af;margin:24px 0 0;">If you did not request a password reset, please ignore this email. Your account remains secure.</p>
+  `
+  await transporter.sendMail({
+    from: SMTP_FROM,
+    to: userEmail,
+    subject: '[NONECO DTS] Password Reset Request',
+    html: emailWrapper('Reset Your Password', body),
+  })
+}
+
 // ── Legacy helper (kept for backward compat) ──────────────────────────────────
 export async function sendNotificationEmail(userEmail, subject, { documentTitle, trackingNumber, status, eventType }) {
   const transporter = createTransporter()

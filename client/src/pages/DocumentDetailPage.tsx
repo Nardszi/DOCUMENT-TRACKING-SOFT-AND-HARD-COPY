@@ -33,6 +33,47 @@ interface DocumentDetail {
   attachments: Attachment[]; tracking_log: TrackingEntry[]
 }
 
+function PreviewModal({ attachment, docId, token, onClose }: {
+  attachment: Attachment; docId: string; token: string; onClose: () => void
+}) {
+  const isImage = attachment.mime_type.startsWith('image/')
+  const isPdf = attachment.mime_type === 'application/pdf'
+  const previewUrl = `/api/documents/${docId}/attachments/${attachment.id}?preview=1`
+
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="preview-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-2xl overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800">
+          <h2 id="preview-title" className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">{attachment.original_name}</h2>
+          <button onClick={onClose} aria-label="Close preview"
+            className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl hover:bg-stone-200 dark:hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors text-stone-500">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto bg-stone-100 dark:bg-stone-950 flex items-center justify-center p-4" style={{ minHeight: 0 }}>
+          {isImage ? (
+            <img src={previewUrl} alt={attachment.original_name} className="max-w-full max-h-full object-contain rounded-lg" />
+          ) : isPdf ? (
+            <iframe src={previewUrl} title={attachment.original_name} className="w-full h-full rounded-lg" style={{ minHeight: '70vh' }} />
+          ) : (
+            <div className="text-center text-stone-500 dark:text-stone-400">
+              <svg className="w-12 h-12 mx-auto mb-3 text-stone-300 dark:text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <p className="text-sm">Preview not available for this file type.</p>
+              <p className="text-xs mt-1">Please download the file instead.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -72,6 +113,7 @@ export default function DocumentDetailPage() {
   const [showRecallConfirm, setShowRecallConfirm] = useState(false)
   const [recallReason, setRecallReason] = useState('')
   const [recalling, setRecalling] = useState(false)
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null)
 
   function refetchDoc() {
     if (!id) return
@@ -301,6 +343,12 @@ export default function DocumentDetailPage() {
                           <p className="text-xs text-stone-500 dark:text-stone-400">{formatBytes(att.file_size_bytes)} · {att.uploaded_by.full_name} · {formatDateTime(att.uploaded_at)}</p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
+                          {(att.mime_type.startsWith('image/') || att.mime_type === 'application/pdf') && (
+                            <button onClick={() => setPreviewAttachment(att)}
+                              className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                              Preview
+                            </button>
+                          )}
                           <button onClick={async () => {
                             try {
                               const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
@@ -370,6 +418,10 @@ export default function DocumentDetailPage() {
       <ConfirmDialog title="Delete Document"
         message={`Permanently delete "${doc.title}"? This will remove all attachments, comments, and tracking history. This cannot be undone.`}
         confirmLabel="Delete Document" onConfirm={handleDelete} onCancel={() => setShowDeleteConfirm(false)} danger />
+    )}
+
+    {previewAttachment && id && (
+      <PreviewModal attachment={previewAttachment} docId={id} token={token ?? ''} onClose={() => setPreviewAttachment(null)} />
     )}
 
     {showRecallConfirm && (

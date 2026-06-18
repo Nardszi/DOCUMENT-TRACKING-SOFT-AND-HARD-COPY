@@ -144,11 +144,13 @@ router.post('/:documentId/attachments', authenticate, (req, res, next) => {
 })
 
 // ---------------------------------------------------------------------------
-// GET /:documentId/attachments/:attachId — download attachment (Req 10.2)
+// GET /:documentId/attachments/:attachId — download or preview attachment
+// Use ?preview=1 for inline display (used by preview modal)
 // ---------------------------------------------------------------------------
 router.get('/:documentId/attachments/:attachId', authenticate, async (req, res, next) => {
   try {
     const { documentId, attachId } = req.params
+    const isPreview = req.query.preview === '1'
 
     // Enforce document visibility scoping (Requirement 5)
     const scope = buildScopeClause(req.user, 2)
@@ -180,7 +182,9 @@ router.get('/:documentId/attachments/:attachId', authenticate, async (req, res, 
     res.setHeader('Content-Type', att.mime_type)
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(att.original_name)}"`
+      isPreview
+        ? `inline; filename="${encodeURIComponent(att.original_name)}"`
+        : `attachment; filename="${encodeURIComponent(att.original_name)}"`
     )
 
     stream.on('error', (err) => {

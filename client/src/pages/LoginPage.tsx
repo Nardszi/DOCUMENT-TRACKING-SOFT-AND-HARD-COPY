@@ -282,6 +282,9 @@ export default function LoginPage() {
                 </span>
               ) : 'Sign In'}
             </button>
+            <div className="flex justify-end -mt-2">
+              <a href="/forgot-password" className="text-xs text-stone-400 hover:text-amber-500 lg:text-stone-500 transition-colors">Forgot password?</a>
+            </div>
           </form>
 
           {/* Sign up link */}

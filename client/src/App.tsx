@@ -6,6 +6,8 @@ import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import DashboardPage from './pages/DashboardPage'
 import AdminPage from './pages/AdminPage'
 import DocumentCreatePage from './pages/DocumentCreatePage'
@@ -18,6 +20,7 @@ import ReportsPage from './pages/ReportsPage'
 import AuditLogPage from './pages/AuditLogPage'
 import { ToastProvider } from './components/ToastContainer'
 import OfflineIndicator from './components/OfflineIndicator'
+import SessionManager from './components/SessionManager'
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -42,9 +45,12 @@ function App() {
         <NotificationProvider>
           <ToastProvider>
           <OfflineIndicator />
+          <SessionManager />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/" element={<AuthenticatedLayout><DashboardPage /></AuthenticatedLayout>} />
             <Route path="/admin" element={<AuthenticatedLayout><AdminPage /></AuthenticatedLayout>} />
             <Route path="/documents/new" element={<AuthenticatedLayout><DocumentCreatePage /></AuthenticatedLayout>} />
