@@ -282,83 +282,76 @@ export default function DocumentListPage() {
 
       <div className="max-w-screen-xl mx-auto px-3 sm:px-4 py-4 sm:py-5 pb-8 sm:pb-5">
 
-        {/* Hero search bar with auto-suggest */}
-        <div ref={searchRef} className="relative mb-4">
-          <form onSubmit={handleSearchSubmit} className="relative">
-            <input
-              ref={searchInputRef}
-              type="search"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              onFocus={() => { if (suggestions.length > 0) setSuggestionsOpen(true) }}
-              placeholder="Search by document title or tracking number..."
-              className="w-full rounded-2xl border border-stone-200 bg-white pl-11 pr-20 py-3.5 text-base text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 shadow-sm dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-500 transition-all"
-              aria-label="Search documents"
-              aria-autocomplete="list"
-              aria-expanded={suggestionsOpen}
-              role="combobox"
-            />
-            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-stone-400 dark:text-stone-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-            </svg>
-            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-              {searching && (
-                <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-              )}
-              <button
-                type="submit"
-                className="min-h-[34px] px-3.5 rounded-lg bg-amber-500 text-xs font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm"
-              >
-                Search
-              </button>
-            </div>
-          </form>
-
-          {/* Auto-suggest dropdown */}
-          {suggestionsOpen && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-white border border-stone-200 shadow-lg overflow-hidden dark:bg-stone-800 dark:border-stone-700">
-              {suggestions.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-stone-400 dark:text-stone-500 flex items-center gap-2">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
-                  No results found
-                </p>
-              ) : (
-                <ul role="listbox" className="divide-y divide-stone-100 dark:divide-stone-700/60 max-h-[320px] overflow-y-auto">
-                  {suggestions.map((doc, idx) => (
-                    <li
-                      key={doc.id}
-                      role="option"
-                      aria-selected={idx === highlightedIdx}
-                      onMouseDown={() => handleSuggestionSelect(doc)}
-                      onMouseEnter={() => setHighlightedIdx(idx)}
-                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${idx === highlightedIdx ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-stone-50 dark:hover:bg-stone-700/50'}`}
-                    >
-                      <span className="font-mono text-xs text-amber-600 dark:text-amber-400 shrink-0 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
-                        {doc.tracking_number}
-                      </span>
-                      <span className="flex-1 min-w-0 truncate text-stone-800 dark:text-stone-200 font-medium">{doc.title}</span>
-                      <StatusBadge status={doc.status} />
-                      <PriorityBadge priority={doc.priority} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="px-4 py-2 bg-stone-50 dark:bg-stone-800/80 border-t border-stone-100 dark:border-stone-700 flex items-center gap-3 text-[11px] text-stone-400 dark:text-stone-500">
-                <span>↑↓ <span className="font-medium">Navigate</span></span>
-                <span>⏎ <span className="font-medium">Open</span></span>
-                <span className="ml-auto">⌦ <span className="font-medium">Esc</span> close</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Filter bar */}
+        {/* Unified search + filter bar */}
         <form
           onSubmit={(e) => { e.preventDefault(); setPage(1); setAppliedFilters(f => ({ ...f, ...filters, search: searchQuery })) }}
           className="bg-white rounded-2xl shadow-card border border-stone-200 p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-3">
+          {/* Search row with auto-suggest */}
+          <div ref={searchRef} className="relative mb-3">
+            <div className="relative">
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                onFocus={() => { if (suggestions.length > 0) setSuggestionsOpen(true) }}
+                placeholder="Search by document title or tracking number..."
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 pl-10 pr-16 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100 dark:placeholder-stone-500 dark:focus:bg-stone-800 transition-all"
+                aria-label="Search documents"
+                aria-autocomplete="list"
+                aria-expanded={suggestionsOpen}
+                role="combobox"
+              />
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 dark:text-stone-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+              </svg>
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {searching && <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />}
+              </div>
+            </div>
+
+            {/* Auto-suggest dropdown */}
+            {suggestionsOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl bg-white border border-stone-200 shadow-lg overflow-hidden dark:bg-stone-800 dark:border-stone-700">
+                {suggestions.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-stone-400 dark:text-stone-500 flex items-center gap-2">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2a10 10 0 100 20 10 10 0 000-20z" /></svg>
+                    No results found
+                  </p>
+                ) : (
+                  <ul role="listbox" className="divide-y divide-stone-100 dark:divide-stone-700/60 max-h-[320px] overflow-y-auto">
+                    {suggestions.map((doc, idx) => (
+                      <li
+                        key={doc.id}
+                        role="option"
+                        aria-selected={idx === highlightedIdx}
+                        onMouseDown={() => handleSuggestionSelect(doc)}
+                        onMouseEnter={() => setHighlightedIdx(idx)}
+                        className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${idx === highlightedIdx ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-stone-50 dark:hover:bg-stone-700/50'}`}
+                      >
+                        <span className="font-mono text-xs text-amber-600 dark:text-amber-400 shrink-0 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
+                          {doc.tracking_number}
+                        </span>
+                        <span className="flex-1 min-w-0 truncate text-stone-800 dark:text-stone-200 font-medium">{doc.title}</span>
+                        <StatusBadge status={doc.status} />
+                        <PriorityBadge priority={doc.priority} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="px-4 py-2 bg-stone-50 dark:bg-stone-800/80 border-t border-stone-100 dark:border-stone-700 flex items-center gap-3 text-[11px] text-stone-400 dark:text-stone-500">
+                  <span>↑↓ <span className="font-medium">Navigate</span></span>
+                  <span>⏎ <span className="font-medium">Open</span></span>
+                  <span className="ml-auto">⌦ <span className="font-medium">Esc</span> close</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Filter grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
             <select name="status" value={filters.status}
               onChange={e => setFilters(p => ({ ...p, status: e.target.value }))} className={fieldCls}>
               <option value="">All Statuses</option>
@@ -386,33 +379,37 @@ export default function DocumentListPage() {
               <option value="">All Categories</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-stone-500 font-medium">Deadline From</label>
-              <input type="date" value={filters.deadline_from}
-                onChange={e => setFilters(p => ({ ...p, deadline_from: e.target.value }))} className={fieldCls} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-stone-500 font-medium">Deadline To</label>
-              <input type="date" value={filters.deadline_to}
-                onChange={e => setFilters(p => ({ ...p, deadline_to: e.target.value }))} className={fieldCls} />
-            </div>
           </div>
-          <div className="flex items-center gap-3 mb-3">
-            <label className="flex items-center gap-2 cursor-pointer">
+
+          {/* Second row: deadline + archived + actions */}
+          <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">Deadline From</label>
+              <input type="date" value={filters.deadline_from}
+                onChange={e => setFilters(p => ({ ...p, deadline_from: e.target.value }))}
+                className={fieldCls + ' w-full sm:w-auto'} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">Deadline To</label>
+              <input type="date" value={filters.deadline_to}
+                onChange={e => setFilters(p => ({ ...p, deadline_to: e.target.value }))}
+                className={fieldCls + ' w-full sm:w-auto'} />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer sm:pb-0.5">
               <input type="checkbox" checked={filters.include_archived === '1'}
                 onChange={e => setFilters(p => ({ ...p, include_archived: e.target.checked ? '1' : '' }))}
                 className="w-4 h-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400 cursor-pointer" />
-              <span className="text-xs font-medium text-stone-500 dark:text-stone-400">Show archived documents</span>
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400">Show archived</span>
             </label>
-          </div>
-          <div className="flex gap-2">
-            <button type="submit" className="min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm">
-              Apply Filters
-            </button>
-            <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
-              className="min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300 transition-all dark:border-stone-600 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600">
-              Clear
-            </button>
+            <div className="flex gap-2 sm:ml-auto">
+              <button type="submit" className="min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm">
+                Apply Filters
+              </button>
+              <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
+                className="min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300 transition-all dark:border-stone-600 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600">
+                Clear
+              </button>
+            </div>
           </div>
         </form>
 
@@ -420,13 +417,13 @@ export default function DocumentListPage() {
 
         {/* Bulk action toolbar — only for department_head and admin */}
         {canBulkAction && selectedIds.length > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 shadow-card dark:bg-amber-900/20 dark:border-amber-800/40">
-            <span className="text-sm font-bold text-stone-800 dark:text-stone-200">{selectedIds.length} selected</span>
+          <div className="mb-3 flex flex-wrap items-center gap-2 sm:gap-3 rounded-2xl bg-amber-50 border border-amber-200 px-3 sm:px-4 py-3 shadow-card dark:bg-amber-900/20 dark:border-amber-800/40">
+            <span className="text-sm font-bold text-stone-800 dark:text-stone-200 w-full sm:w-auto">{selectedIds.length} selected</span>
             <button
               type="button"
               disabled={bulkLoading}
               onClick={() => setConfirmAction('complete')}
-              className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 transition-all shadow-sm"
+              className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-emerald-600 text-xs sm:text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 transition-all shadow-sm"
             >
               Mark Complete
             </button>
@@ -434,7 +431,7 @@ export default function DocumentListPage() {
               <select
                 value={bulkPriority}
                 onChange={e => setBulkPriority(e.target.value as Priority)}
-                className="rounded-xl border border-amber-200 dark:border-amber-700 px-3 py-1.5 text-sm text-stone-800 dark:text-stone-200 bg-white dark:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[36px]"
+                className="rounded-xl border border-amber-200 dark:border-amber-700 px-3 py-1.5 text-xs sm:text-sm text-stone-800 dark:text-stone-200 bg-white dark:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[36px]"
                 aria-label="Select priority"
               >
                 {PRIORITY_OPTIONS.map(p => (
@@ -445,7 +442,7 @@ export default function DocumentListPage() {
                 type="button"
                 disabled={bulkLoading}
                 onClick={() => setConfirmAction('priority')}
-                className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-sky-600 text-sm font-semibold text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-50 transition-all shadow-sm"
+                className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-sky-600 text-xs sm:text-sm font-semibold text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-50 transition-all shadow-sm"
               >
                 Set Priority
               </button>
@@ -455,7 +452,7 @@ export default function DocumentListPage() {
                 type="button"
                 disabled={bulkLoading}
                 onClick={() => setConfirmAction('delete')}
-                className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 transition-all shadow-sm"
+                className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-red-600 text-xs sm:text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 transition-all shadow-sm"
               >
                 Delete Selected
               </button>
@@ -463,7 +460,7 @@ export default function DocumentListPage() {
             <button
               type="button"
               onClick={() => setSelectedIds([])}
-              className="ml-auto min-h-[36px] px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-stone-800 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+              className="min-h-[36px] px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-stone-800 text-xs sm:text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all sm:ml-auto"
             >
               Clear
             </button>
@@ -471,16 +468,18 @@ export default function DocumentListPage() {
         )}
 
         {/* Document list — cards on mobile, table on desktop */}
-        <div className="bg-white rounded-2xl shadow-card border border-stone-200 overflow-hidden dark:bg-stone-900 dark:border-stone-700">
+        <div className="bg-white rounded-2xl shadow-card border border-stone-200 overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
           {loading ? (
             <TableSkeleton rows={10} cols={7} />
           ) : documents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-stone-400 dark:text-stone-500">
-              <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="text-base font-medium text-stone-600 dark:text-stone-400">No documents found</p>
-              <p className="text-sm mt-1">Try adjusting your filters or create a new document.</p>
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-stone-100 dark:bg-stone-700 flex items-center justify-center mb-4">
+                <svg className="w-7 h-7 text-stone-400 dark:text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="text-base font-semibold text-stone-700 dark:text-stone-300">No documents found</p>
+              <p className="text-sm text-stone-400 dark:text-stone-500 mt-1 max-w-xs">Try adjusting your filters or clear them to see all documents.</p>
             </div>
           ) : (
             <>
@@ -492,8 +491,8 @@ export default function DocumentListPage() {
                   return (
                     <li
                       key={doc.id}
-                      className={`px-4 py-3.5 transition-colors ${doc.is_overdue ? 'border-l-4 border-red-500' : ''} ${isSelected ? 'bg-amber-50/60 dark:bg-amber-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/60'}`}
-                    >
+                      className={`px-4 py-3.5 transition-colors relative ${isSelected ? 'bg-amber-50/60 dark:bg-amber-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/60'}`}>
+                          {doc.is_overdue && <div className="absolute left-0 top-2 bottom-2 w-1 bg-red-500 rounded-r-full" aria-hidden="true" />}
                       <div className="flex items-start gap-3">
                         {canBulkAction && (
                           <input
@@ -580,8 +579,8 @@ export default function DocumentListPage() {
                       const docId = String(doc.id)
                       const isSelected = selectedIds.includes(docId)
                       return (
-                        <tr key={doc.id}
-                          className={`transition-colors ${doc.is_overdue ? 'border-l-4 border-red-500' : ''} ${isSelected ? 'bg-amber-50/60 dark:bg-amber-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/60'}`}>
+                         <tr key={doc.id}
+                           className={`transition-colors ${isSelected ? 'bg-amber-50/60 dark:bg-amber-900/10' : 'hover:bg-stone-50 dark:hover:bg-stone-800/60'}`}>
                           {canBulkAction && (
                             <td className="px-4 py-3 w-10" onClick={e => e.stopPropagation()}>
                               <input
@@ -618,16 +617,30 @@ export default function DocumentListPage() {
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
-            <p className="text-xs text-stone-500 dark:text-stone-400">Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}</p>
-            <div className="flex gap-2">
+          <div className="flex items-center justify-between mt-4 flex-wrap gap-2 px-1">
+            <p className="text-xs text-stone-500 dark:text-stone-400">Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of <span className="font-semibold text-stone-700 dark:text-stone-200">{total}</span></p>
+            <div className="flex items-center gap-1.5">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                className="min-h-[36px] px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
                 ← Prev
               </button>
-              <span className="flex items-center px-3 text-sm text-stone-500 dark:text-stone-400">{page} / {totalPages}</span>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const start = Math.min(Math.max(page - 2, 0), Math.max(totalPages - 5, 0))
+                const p = start + i + 1
+                if (p < 1 || p > totalPages) return null
+                return (
+                  <button key={p} onClick={() => setPage(p)}
+                    className={`min-h-[36px] min-w-[36px] rounded-xl text-xs font-semibold transition-all ${
+                      p === page
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700'
+                    }`}>
+                    {p}
+                  </button>
+                )
+              })}
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
+                className="min-h-[36px] px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
                 Next →
               </button>
             </div>
