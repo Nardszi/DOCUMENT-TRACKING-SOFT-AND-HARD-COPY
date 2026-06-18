@@ -18,6 +18,7 @@ import NotificationsPage from './pages/NotificationsPage'
 import ProfilePage from './pages/ProfilePage'
 import ReportsPage from './pages/ReportsPage'
 import AuditLogPage from './pages/AuditLogPage'
+import ApprovalsPage from './pages/ApprovalsPage'
 import { ToastProvider } from './components/ToastContainer'
 import OfflineIndicator from './components/OfflineIndicator'
 import SessionManager from './components/SessionManager'
@@ -64,6 +65,7 @@ function App() {
             <Route path="/reports" element={<AuthenticatedLayout><ReportsPage /></AuthenticatedLayout>} />
             <Route path="/audit-log" element={<AuthenticatedLayout><AuditLogPage /></AuthenticatedLayout>} />
             <Route path="/admin/audit-log" element={<AuthenticatedLayout><AuditLogPage /></AuthenticatedLayout>} />
+            <Route path="/approvals" element={<AuthenticatedLayout><ApprovalsPage /></AuthenticatedLayout>} />
             <Route path="*" element={<NotFoundRedirect />} />
           </Routes>
           </ErrorBoundary>

@@ -116,6 +116,14 @@ export default function DocumentDetailPage() {
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null)
   const [archiving, setArchiving] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+  const [versions, setVersions] = useState<{ id: string; version: number; snapshot: Record<string, unknown>; changed_by: { id: string; full_name: string }; changed_at: string }[]>([])
+  const [expandedVersion, setExpandedVersion] = useState<string | null>(null)
+  const [approvals, setApprovals] = useState<{ id: string; step_order: number; label: string; status: string; assigned_to: string | null; assigned_department_id: string | null; comment: string | null; decided_by_name: string | null; decided_at: string | null; department_code: string | null }[]>([])
+  const [approvalsLoading, setApprovalsLoading] = useState(false)
+  const [flows, setFlows] = useState<{ id: string; name: string }[]>([])
+  const [showAssignFlow, setShowAssignFlow] = useState(false)
+  const [selectedFlowId, setSelectedFlowId] = useState('')
+  const [assignLoading, setAssignLoading] = useState(false)
 
   function refetchDoc() {
     if (!id) return
@@ -174,6 +182,30 @@ export default function DocumentDetailPage() {
     }
   }
 
+  async function handleAssignFlow() {
+    if (!selectedFlowId) return
+    setAssignLoading(true)
+    try {
+      const res = await fetch(`/api/approvals/${id}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ flow_id: selectedFlowId })
+      })
+      if (!res.ok) throw new Error('Failed to assign flow')
+      setShowAssignFlow(false)
+      setSelectedFlowId('')
+      setApprovalsLoading(true)
+      fetch(`/api/approvals/${id}/approvals`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setApprovals(data))
+        .finally(() => setApprovalsLoading(false))
+    } catch (err) {
+      console.warn('Assign flow failed', err)
+    } finally {
+      setAssignLoading(false)
+    }
+  }
+
   async function handleArchive() {
     setArchiving(true)
     try {
@@ -200,7 +232,23 @@ export default function DocumentDetailPage() {
       .then(data => setDoc(data))
       .catch(() => setError('Failed to load document.'))
       .finally(() => setLoading(false))
-  }, [id, token])
+    fetch(`/api/documents/${id}/versions`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setVersions(data))
+      .catch(() => console.warn('Failed to load versions'))
+    setApprovalsLoading(true)
+    fetch(`/api/approvals/${id}/approvals`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setApprovals(data))
+      .catch(() => console.warn('Failed to load approvals'))
+      .finally(() => setApprovalsLoading(false))
+    if (user?.role === 'admin' || user?.role === 'department_head') {
+      fetch('/api/approvals/flows', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setFlows(data))
+        .catch(() => console.warn('Failed to load flows'))
+    }
+  }, [id, token, user])
 
   if (loading) return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
@@ -444,6 +492,102 @@ export default function DocumentDetailPage() {
               </div>
               <div className="p-5">
                 <TrackingLogTimeline entries={doc.tracking_log} />
+              </div>
+            </div>
+
+            {/* Approvals */}
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden mt-4 dark:bg-stone-800/80 dark:border-stone-700">
+              <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Approvals</h2>
+                  <span className="text-xs font-medium bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full dark:bg-stone-700 dark:text-stone-300">{approvals.length}</span>
+                </div>
+                {(user?.role === 'admin' || user?.role === 'department_head') && approvals.length === 0 && flows.length > 0 && (
+                  <button onClick={() => setShowAssignFlow(true)} className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400">Assign Flow</button>
+                )}
+              </div>
+              <div className="p-5">
+                {approvalsLoading ? (
+                  <p className="text-xs text-stone-400 dark:text-stone-500">Loading...</p>
+                ) : approvals.length === 0 ? (
+                  <div>
+                    <p className="text-xs text-stone-400 dark:text-stone-500">No approvals assigned.</p>
+                    {showAssignFlow && (
+                      <div className="mt-3 space-y-2">
+                        <select value={selectedFlowId} onChange={e => setSelectedFlowId(e.target.value)} className="w-full px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-800 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                          <option value="">Select a flow…</option>
+                          {flows.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                        </select>
+                        <div className="flex gap-2">
+                          <button onClick={handleAssignFlow} disabled={!selectedFlowId || assignLoading} className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50">{assignLoading ? 'Assigning...' : 'Assign'}</button>
+                          <button onClick={() => setShowAssignFlow(false)} className="px-3 py-1.5 text-xs font-medium rounded-xl border border-stone-200 dark:border-stone-600 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700">Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-stone-100 dark:divide-stone-700/60">
+                    {approvals.map(a => (
+                      <li key={a.id} className="py-2.5 flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-mono font-medium text-stone-400">#{a.step_order}</span>
+                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                              a.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                              a.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                              'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            }`}>{a.status}</span>
+                          </div>
+                          <p className="text-xs text-stone-700 dark:text-stone-300 mt-0.5">{a.label}</p>
+                          {a.decided_by_name && (
+                            <p className="text-[11px] text-stone-400 dark:text-stone-500 mt-0.5">by {a.decided_by_name}{a.decided_at ? ' ' + formatDateTime(a.decided_at) : ''}</p>
+                          )}
+                          {a.comment && <p className="text-[11px] text-stone-500 dark:text-stone-400 italic mt-0.5">"{a.comment}"</p>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* Versions */}
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden mt-4 dark:bg-stone-800/80 dark:border-stone-700">
+              <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700 flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Versions</h2>
+                <span className="text-xs font-medium bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full dark:bg-stone-700 dark:text-stone-300">{versions.length}</span>
+              </div>
+              <div className="p-5">
+                {versions.length === 0 ? (
+                  <p className="text-xs text-stone-400 dark:text-stone-500">No previous versions.</p>
+                ) : (
+                  <ul className="divide-y divide-stone-100 dark:divide-stone-700/60">
+                    {versions.map(v => (
+                      <li key={v.id} className="py-2.5">
+                        <button
+                          className="w-full text-left flex items-center justify-between gap-2"
+                          onClick={() => setExpandedVersion(expandedVersion === v.id ? null : v.id)}
+                        >
+                          <div className="min-w-0">
+                            <span className="text-xs font-mono font-semibold text-stone-700 dark:text-stone-300">v{v.version}</span>
+                            <span className="text-xs text-stone-500 dark:text-stone-400 ml-2">{v.changed_by.full_name}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-[11px] text-stone-400 tabular-nums">{formatDateTime(v.changed_at)}</span>
+                            <svg className={`w-3 h-3 text-stone-400 transition-transform ${expandedVersion === v.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </button>
+                        {expandedVersion === v.id && (
+                          <pre className="mt-2 text-xs text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all max-h-60 overflow-y-auto">
+                            {JSON.stringify(v.snapshot, null, 2)}
+                          </pre>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           </div>

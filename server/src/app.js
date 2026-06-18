@@ -22,6 +22,7 @@ import auditLogRoutes from './routes/audit-log.routes.js'
 import templatesRoutes from './routes/templates.routes.js'
 import recallRoutes from './routes/recall.routes.js'
 import profileRoutes from './routes/profile.routes.js'
+import approvalRoutes from './routes/approvals.routes.js'
 import { migrate } from './db/migrate.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -92,6 +93,7 @@ app.use('/api/audit-log', auditLogRoutes)
 app.use('/api/templates', templatesRoutes)
 app.use('/api/documents', recallRoutes)
 app.use('/api/profile', profileRoutes)
+app.use('/api/approvals', approvalRoutes)
 
 // ── Serve built React frontend in production ──────────────────────────────────
 // Vercel serves static assets via its edge/CDN, skip here

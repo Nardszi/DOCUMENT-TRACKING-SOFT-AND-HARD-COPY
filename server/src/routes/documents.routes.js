@@ -140,11 +140,15 @@ router.get('/', authenticate, async (req, res, next) => {
     const scope = buildScopeClause(req.user, params.length + 1)
     if (scope.params.length) params.push(...scope.params)
     whereClauses.push(scope.clause)
+    let orderClause = ' ORDER BY d.created_at DESC'
     if (req.query.search) {
       const sv = '%' + req.query.search + '%'
       params.push(sv)
-      const sp = '$' + params.length
-      whereClauses.push('(d.tracking_number ILIKE ' + sp + ' OR d.title ILIKE ' + sp + ' OR dc.name ILIKE ' + sp + ' OR od.name ILIKE ' + sp + ' OR od.code ILIKE ' + sp + ')')
+      const likeParam = '$' + params.length
+      params.push(req.query.search)
+      const tsParam = '$' + params.length
+      whereClauses.push('(d.search_vector @@ plainto_tsquery(\'english\', ' + tsParam + ') OR d.tracking_number ILIKE ' + likeParam + ' OR d.title ILIKE ' + likeParam + ' OR dc.name ILIKE ' + likeParam + ' OR od.name ILIKE ' + likeParam + ' OR od.code ILIKE ' + likeParam + ')')
+      orderClause = ' ORDER BY ts_rank(d.search_vector, plainto_tsquery(\'english\', ' + tsParam + ')) DESC, d.created_at DESC'
     }
     if (req.query.status)        { params.push(req.query.status);        whereClauses.push('d.status = $' + params.length) }
     if (req.query.department_id) { params.push(req.query.department_id); whereClauses.push('d.current_department_id = $' + params.length) }
@@ -159,7 +163,7 @@ router.get('/', authenticate, async (req, res, next) => {
     params.push(limit, offset)
     const limitIdx = params.length - 1
     const offsetIdx = params.length
-    const dataResult = await pool.query('SELECT ' + DOC_SELECT_FULL + DOC_JOINS_FULL + whereSQL + ' ORDER BY d.created_at DESC LIMIT $' + limitIdx + ' OFFSET $' + offsetIdx, params)
+    const dataResult = await pool.query('SELECT ' + DOC_SELECT_FULL + DOC_JOINS_FULL + whereSQL + orderClause + ' LIMIT $' + limitIdx + ' OFFSET $' + offsetIdx, params)
     res.json({ data: dataResult.rows.map(formatDoc), total, page, limit, totalPages: Math.ceil(total / limit) })
   } catch (err) { next(err) }
 })
@@ -284,11 +288,13 @@ router.get('/quick-search', authenticate, async (req, res, next) => {
     return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'q must be at least 2 characters.' } })
   try {
     const term = q.trim()
-    const scope = buildScopeClause(req.user, 2)
-    const params = [term, ...scope.params]
+    const likeTerm = '%' + term + '%'
+    const scope = buildScopeClause(req.user, 3)
+    const params = [term, likeTerm, ...scope.params]
     const result = await pool.query(
       'SELECT ' + DOC_SELECT_FULL + DOC_JOINS_FULL +
-      " WHERE (d.tracking_number ILIKE $1 || '%' OR d.title ILIKE '%' || $1 || '%') AND " + scope.clause + ' LIMIT 8', params)
+      ' WHERE (d.search_vector @@ plainto_tsquery(\'english\', $1) OR d.tracking_number ILIKE $2 OR d.title ILIKE $2) AND ' + scope.clause +
+      ' ORDER BY ts_rank(d.search_vector, plainto_tsquery(\'english\', $1)) DESC, d.created_at DESC LIMIT 8', params)
     res.json({ data: result.rows.map(formatDoc) })
   } catch (err) { next(err) }
 })
@@ -439,6 +445,15 @@ router.patch('/:id', authenticate, async (req, res, next) => {
     values.push(id)
     const whereParam = '$' + values.length
 
+    // Snapshot current version before updating
+    const oldDoc = await pool.query(
+      'SELECT title, description, deadline, priority, category_id, originating_department_id, status, version FROM documents WHERE id = $1', [id])
+    if (oldDoc.rows.length) {
+      await pool.query(
+        'INSERT INTO document_versions (document_id, version, snapshot, changed_by) VALUES ($1, $2, $3, $4)',
+        [id, oldDoc.rows[0].version, JSON.stringify(oldDoc.rows[0]), req.user.id])
+    }
+
     const updateResult = await pool.query(
       'UPDATE documents SET ' + setCols.join(', ') + ' WHERE id = ' + whereParam + ' RETURNING id', values)
     if (!updateResult.rows.length)
@@ -446,6 +461,26 @@ router.patch('/:id', authenticate, async (req, res, next) => {
 
     const docResult = await pool.query('SELECT ' + DOC_SELECT_FULL + DOC_JOINS_FULL + ' WHERE d.id = $1', [id])
     res.json(formatDoc(docResult.rows[0]))
+  } catch (err) { next(err) }
+})
+
+// GET /:id/versions — list version history for a document
+router.get('/:id/versions', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const scope = buildScopeClause(req.user, 2)
+    const docCheck = await pool.query('SELECT d.id FROM documents d' + DOC_JOINS_FULL.replace(' FROM documents d', '') + ' WHERE d.id = $1 AND ' + scope.clause, [id, ...scope.params])
+    if (!docCheck.rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
+    const result = await pool.query(
+      'SELECT dv.id, dv.version, dv.snapshot, dv.changed_by, u.full_name AS changed_by_name, dv.changed_at FROM document_versions dv JOIN users u ON u.id = dv.changed_by WHERE dv.document_id = $1 ORDER BY dv.version DESC',
+      [id])
+    res.json(result.rows.map(r => ({
+      id: r.id,
+      version: r.version,
+      snapshot: r.snapshot,
+      changed_by: { id: r.changed_by, full_name: r.changed_by_name },
+      changed_at: r.changed_at,
+    })))
   } catch (err) { next(err) }
 })
 
