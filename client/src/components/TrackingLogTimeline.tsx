@@ -39,9 +39,10 @@ export default function TrackingLogTimeline({ entries }: { entries: TrackingEntr
         const cfg = EVENT_CONFIG[entry.event_type] ?? { label: entry.event_type, color: 'bg-stone-100 text-stone-600', dot: 'bg-stone-400' }
         const isLast = idx === entries.length - 1
 
-        // Extract destination dept from metadata for forwarded/returned
+        // Extract destination dept + routing note from metadata for forwarded/returned
         const toDeptId = entry.metadata?.to_department_id as string | undefined
         const toDeptCode = entry.metadata?.to_department_code as string | undefined
+        const routingNote = entry.metadata?.routing_note as string | undefined
 
         return (
           <li key={entry.id} className="flex gap-3">
@@ -86,8 +87,8 @@ export default function TrackingLogTimeline({ entries }: { entries: TrackingEntr
                 {cfg.label}
               </span>
 
-              {entry.remarks && (
-                <p className="text-xs text-stone-600 dark:text-stone-400 mt-1.5 leading-relaxed">{entry.remarks}</p>
+              {(entry.remarks || (entry.event_type === 'forwarded' && routingNote)) && (
+                <p className="text-xs text-stone-600 dark:text-stone-400 mt-1.5 leading-relaxed">{entry.remarks || routingNote}</p>
               )}
 
               <time className="text-[11px] text-stone-400 dark:text-stone-500 mt-1 block">

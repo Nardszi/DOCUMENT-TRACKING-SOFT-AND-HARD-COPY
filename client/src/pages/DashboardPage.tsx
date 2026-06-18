@@ -19,13 +19,14 @@ function formatDate(iso: string) {
 }
 
 interface StatCardProps {
-  label: string; count: number
+  label: string; count: number; linkTo: string
   bg: string; text: string; border: string; icon: React.ReactNode
 }
 
-function StatCard({ label, count, bg, text, border, icon }: StatCardProps) {
+function StatCard({ label, count, linkTo, bg, text, border, icon }: StatCardProps) {
   return (
-    <div className={`rounded-2xl p-4 border shadow-card flex flex-col gap-3 transition-shadow hover:shadow-card-md ${bg} ${border}`}>
+    <a href={linkTo}
+      className={`rounded-2xl p-4 border shadow-card flex flex-col gap-3 transition-shadow hover:shadow-card-md ${bg} ${border} cursor-pointer block`}>
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${text} bg-white/70 dark:bg-black/20`}>
         {icon}
       </div>
@@ -33,7 +34,7 @@ function StatCard({ label, count, bg, text, border, icon }: StatCardProps) {
         <p className={`text-2xl font-bold tracking-tight ${text}`}>{count}</p>
         <p className={`text-xs font-semibold uppercase tracking-wider ${text} opacity-70 mt-0.5`}>{label}</p>
       </div>
-    </div>
+    </a>
   )
 }
 
@@ -99,23 +100,23 @@ export default function DashboardPage() {
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-          <StatCard label="Total" count={counts.total}
+          <StatCard label="Total" count={counts.total} linkTo="/documents"
             bg="bg-white dark:bg-stone-800/80" border="border-stone-200 dark:border-stone-700" text="text-stone-700 dark:text-stone-200"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
           />
-          <StatCard label="Pending" count={counts.pending}
+          <StatCard label="Pending" count={counts.pending} linkTo="/documents?status=pending"
             bg="bg-white dark:bg-stone-800/80" border="border-stone-200 dark:border-stone-700" text="text-stone-500 dark:text-stone-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
           />
-          <StatCard label="In Progress" count={counts.in_progress}
+          <StatCard label="In Progress" count={counts.in_progress} linkTo="/documents?status=in_progress"
             bg="bg-amber-50 dark:bg-amber-900/20" border="border-amber-200 dark:border-amber-800/40" text="text-amber-700 dark:text-amber-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
           />
-          <StatCard label="Overdue" count={counts.overdue}
+          <StatCard label="Overdue" count={counts.overdue} linkTo="/documents?status=overdue"
             bg="bg-red-50 dark:bg-red-900/20" border="border-red-200 dark:border-red-800/40" text="text-red-600 dark:text-red-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
           />
-          <StatCard label="Completed" count={counts.completed}
+          <StatCard label="Completed" count={counts.completed} linkTo="/documents?status=completed"
             bg="bg-emerald-50 dark:bg-emerald-900/20" border="border-emerald-200 dark:border-emerald-800/40" text="text-emerald-700 dark:text-emerald-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
           />

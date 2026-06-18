@@ -5,6 +5,7 @@ import { NotificationProvider } from './contexts/NotificationContext'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import AdminPage from './pages/AdminPage'
 import DocumentCreatePage from './pages/DocumentCreatePage'
@@ -43,6 +44,7 @@ function App() {
           <OfflineIndicator />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route path="/" element={<AuthenticatedLayout><DashboardPage /></AuthenticatedLayout>} />
             <Route path="/admin" element={<AuthenticatedLayout><AdminPage /></AuthenticatedLayout>} />
             <Route path="/documents/new" element={<AuthenticatedLayout><DocumentCreatePage /></AuthenticatedLayout>} />

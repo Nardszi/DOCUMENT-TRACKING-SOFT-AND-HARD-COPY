@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../components/ToastContainer'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
 import DeadlineBadge from '../components/DeadlineBadge'
@@ -191,7 +192,7 @@ export default function DocumentDetailPage() {
             </Link>
             <button
               type="button"
-              onClick={() => window.open(`/api/documents/${doc.id}/qr-cover`, '_blank', 'noopener,noreferrer')}
+              onClick={() => window.open(`/api/documents/${doc.id}/qr-cover?token=${token}`, '_blank', 'noopener,noreferrer')}
               className="inline-flex items-center min-h-[40px] px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors">
               Print Cover Sheet
             </button>
@@ -300,10 +301,28 @@ export default function DocumentDetailPage() {
                           <p className="text-xs text-stone-500 dark:text-stone-400">{formatBytes(att.file_size_bytes)} · {att.uploaded_by.full_name} · {formatDateTime(att.uploaded_at)}</p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <a href={`/api/documents/${doc.id}/attachments/${att.id}`} download={att.original_name}
+                          <button onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
+                                headers: { Authorization: `Bearer ${token}` },
+                              })
+                              if (!res.ok) throw new Error()
+                              const blob = await res.blob()
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement('a')
+                              a.href = url
+                              a.download = att.original_name
+                              document.body.appendChild(a)
+                              a.click()
+                              document.body.removeChild(a)
+                              URL.revokeObjectURL(url)
+                            } catch {
+                              showToast('Failed to download file.', 'error')
+                            }
+                          }}
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                             Download
-                          </a>
+                          </button>
                         </div>
                       </li>
                     ))}

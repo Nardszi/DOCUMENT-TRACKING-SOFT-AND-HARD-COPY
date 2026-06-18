@@ -285,7 +285,13 @@ export default function LoginPage() {
           </form>
 
           {/* Help text */}
-          <p className="mt-8 text-center text-xs text-stone-400">
+          <p className="mt-6 text-center text-xs text-stone-400">
+            Don't have an account?{' '}
+            <a href="/register" className="text-amber-500 hover:text-amber-400 font-semibold">
+              Sign up
+            </a>
+          </p>
+          <p className="mt-2 text-center text-xs text-stone-400">
             For account issues, contact your system administrator.
           </p>
         </div>

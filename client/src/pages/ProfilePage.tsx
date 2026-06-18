@@ -82,7 +82,7 @@ function PasswordField({
 }
 
 export default function ProfilePage() {
-  const { user, token } = useAuth()
+  const { user, token, login } = useAuth()
   const { showToast } = useToast()
 
   const [departmentName, setDepartmentName] = useState('')
@@ -90,6 +90,9 @@ export default function ProfilePage() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState('')
+  const [savingName, setSavingName] = useState(false)
 
   useEffect(() => {
     if (!token || !user?.departmentId) return
@@ -254,8 +257,89 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* ── RIGHT: Security / Change password ── */}
-          <div className="lg:col-span-2">
+          {/* ── RIGHT: Account info + Security ── */}
+          <div className="lg:col-span-2 flex flex-col gap-5">
+            {/* Edit Name */}
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
+              <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-700 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Account Details</h2>
+                  <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">Update your personal information</p>
+                </div>
+              </div>
+              <div className="px-6 py-5">
+                {!editingName ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider">Full Name</p>
+                      <p className="text-base font-medium text-stone-900 dark:text-stone-100 mt-1">{user?.fullName}</p>
+                    </div>
+                    <button
+                      onClick={() => { setNameValue(user?.fullName || ''); setEditingName(true) }}
+                      className="min-h-[36px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm"
+                    >
+                      Edit Name
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault()
+                    if (!nameValue.trim()) return
+                    setSavingName(true)
+                    try {
+                      const res = await fetch('/api/profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ full_name: nameValue.trim() }),
+                      })
+                      if (!res.ok) throw new Error()
+                      const data = await res.json()
+                      if (data.token) login(data.token)
+                      showToast('Name updated successfully', 'success')
+                      setEditingName(false)
+                    } catch {
+                      showToast('Failed to update name.', 'error')
+                    } finally { setSavingName(false) }
+                  }} className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-1.5">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={nameValue}
+                        onChange={e => setNameValue(e.target.value)}
+                        className="w-full rounded-xl border border-stone-200 dark:border-stone-600 px-4 py-2.5 text-sm bg-stone-50 dark:bg-stone-700 focus:bg-white dark:focus:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:text-stone-100 transition-all"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={savingName || !nameValue.trim()}
+                        className="min-h-[36px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-60 transition-all shadow-sm"
+                      >
+                        {savingName ? 'Saving…' : 'Save'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingName(false)}
+                        className="min-h-[36px] px-4 py-2 rounded-xl border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-600 focus:outline-none focus:ring-2 focus:ring-stone-300 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+
+            {/* Change Password */}
             <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
               <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-700 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">

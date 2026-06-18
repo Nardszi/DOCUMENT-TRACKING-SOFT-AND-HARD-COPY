@@ -18,15 +18,11 @@ function buildScopeClause(user, startIdx) {
     const clause = '(' +
       'd.originating_department_id = ' + p +
       ' OR d.current_department_id = ' + p +
-      ' OR EXISTS (SELECT 1 FROM routings r WHERE r.document_id = d.id AND (r.from_department_id = ' + p + ' OR r.to_department_id = ' + p + '))' +
-      ' OR EXISTS (SELECT 1 FROM routing_cc rcc JOIN routings r2 ON r2.id = rcc.routing_id WHERE r2.document_id = d.id AND rcc.department_id = ' + p + ')' +
       ')'
     return { clause, params }
   }
   const clause = '(' +
     'd.current_department_id = ' + p +
-    ' OR EXISTS (SELECT 1 FROM routings r WHERE r.document_id = d.id AND (r.from_department_id = ' + p + ' OR r.to_department_id = ' + p + '))' +
-    ' OR EXISTS (SELECT 1 FROM routing_cc rcc JOIN routings r2 ON r2.id = rcc.routing_id WHERE r2.document_id = d.id AND rcc.department_id = ' + p + ')' +
     ')'
   return { clause, params }
 }
@@ -166,9 +162,20 @@ router.get('/', authenticate, async (req, res, next) => {
 })
 
 // GET /:id/qr-cover
-router.get('/:id/qr-cover', authenticate, async (req, res, next) => {
+router.get('/:id/qr-cover', async (req, res, next) => {
   try {
     const { id } = req.params
+    const token = req.query.token
+    if (!token) {
+      return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Token query param required.' } })
+    }
+    try {
+      const jwt = await import('jsonwebtoken')
+      const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
+      jwt.default.verify(token, JWT_SECRET)
+    } catch {
+      return res.status(401).json({ error: { code: 'INVALID_TOKEN', message: 'Invalid or expired token.' } })
+    }
     const result = await pool.query(
       'SELECT d.id, d.tracking_number, d.title, d.status, d.created_at, od.name AS originating_department_name' +
       ' FROM documents d JOIN departments od ON od.id = d.originating_department_id WHERE d.id = $1', [id])
@@ -219,6 +226,43 @@ router.post('/bulk-complete', authenticate, async (req, res, next) => {
   } catch (err) { await client.query('ROLLBACK'); client.release(); return next(err) }
   client.release()
   res.json({ completed, skipped })
+})
+
+// POST /bulk-delete — delete multiple documents (admin only)
+router.post('/bulk-delete', authenticate, async (req, res, next) => {
+  if (req.user.role !== 'admin')
+    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Only admins can delete documents.' } })
+  const { document_ids } = req.body
+  if (!Array.isArray(document_ids) || document_ids.length === 0)
+    return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
+  if (document_ids.length > 100)
+    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 100 items.' } })
+  const client = await pool.connect()
+  let deleted = 0
+  try {
+    await client.query('BEGIN')
+    for (const docId of document_ids) {
+      const check = await client.query('SELECT id, tracking_number, title FROM documents WHERE id = $1', [docId])
+      if (!check.rows.length) continue
+      const { tracking_number, title } = check.rows[0]
+      await client.query('DELETE FROM document_comments WHERE document_id = $1', [docId])
+      await client.query('DELETE FROM notifications WHERE document_id = $1', [docId])
+      await client.query('DELETE FROM attachments WHERE document_id = $1', [docId])
+      await client.query('DELETE FROM tracking_log WHERE document_id = $1', [docId])
+      await client.query('DELETE FROM routing_cc WHERE routing_id IN (SELECT id FROM routings WHERE document_id = $1)', [docId])
+      await client.query('DELETE FROM routings WHERE document_id = $1', [docId])
+      await client.query('DELETE FROM documents WHERE id = $1', [docId])
+      recordAudit(pool, req.user.id, 'document.deleted', 'document', docId, { tracking_number, title })
+      deleted++
+    }
+    await client.query('COMMIT')
+    client.release()
+    res.json({ deleted })
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {})
+    client.release()
+    next(err)
+  }
 })
 
 // POST /bulk-set-priority

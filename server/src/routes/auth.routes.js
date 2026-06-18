@@ -149,4 +149,37 @@ router.post('/change-password', authenticate, async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// POST /api/auth/register — self-registration
+router.post('/register', async (req, res, next) => {
+  const { username, password, email, full_name, department_id } = req.body
+  if (!username || !password || !email || !full_name || !department_id) {
+    return res.status(400).json({
+      error: { code: 'BAD_REQUEST', message: 'username, password, email, full_name, and department_id are required.' },
+    })
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: { code: 'PASSWORD_TOO_SHORT', message: 'Password must be at least 8 characters.' } })
+  }
+  try {
+    const deptResult = await pool.query('SELECT id FROM departments WHERE id = $1', [department_id])
+    if (!deptResult.rows.length) {
+      return res.status(400).json({ error: { code: 'INVALID_DEPARTMENT', message: 'Invalid department.' } })
+    }
+    const password_hash = await bcrypt.hash(password, 10)
+    const { rows } = await pool.query(
+      `INSERT INTO users (username, password_hash, email, full_name, role, department_id)
+       VALUES ($1, $2, $3, $4, 'staff', $5)
+       RETURNING id, username, email, full_name, role, department_id, is_active`,
+      [username, password_hash, email, full_name, department_id]
+    )
+    res.status(201).json({ message: 'Account created successfully. You can now log in.' })
+  } catch (err) {
+    if (err.code === '23505') {
+      const field = err.constraint?.includes('email') ? 'email' : 'username'
+      return res.status(409).json({ error: { code: 'CONFLICT', message: `A user with that ${field} already exists.` } })
+    }
+    next(err)
+  }
+})
+
 export default router

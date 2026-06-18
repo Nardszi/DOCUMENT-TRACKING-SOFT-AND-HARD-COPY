@@ -25,7 +25,7 @@ const PAGE_SIZE = 25
 const PRIORITY_OPTIONS = ['low', 'normal', 'high', 'urgent'] as const
 type Priority = typeof PRIORITY_OPTIONS[number]
 
-type BulkConfirmAction = 'complete' | 'priority' | null
+type BulkConfirmAction = 'complete' | 'priority' | 'delete' | null
 
 function formatUpdated(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -202,6 +202,27 @@ export default function DocumentListPage() {
     }
   }
 
+  async function executeBulkDelete() {
+    setBulkLoading(true)
+    try {
+      const res = await fetch('/api/documents/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ document_ids: selectedIds }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error?.message ?? 'Bulk delete failed')
+      showToast(`${data.deleted} document${data.deleted !== 1 ? 's' : ''} deleted.`, 'success')
+      setSelectedIds([])
+      fetchDocuments(appliedFilters, page)
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Bulk delete failed', 'error')
+    } finally {
+      setBulkLoading(false)
+      setConfirmAction(null)
+    }
+  }
+
   async function executeBulkSetPriority() {
     setBulkLoading(true)
     try {
@@ -227,10 +248,13 @@ export default function DocumentListPage() {
   function handleConfirm() {
     if (confirmAction === 'complete') executeBulkComplete()
     else if (confirmAction === 'priority') executeBulkSetPriority()
+    else if (confirmAction === 'delete') executeBulkDelete()
   }
 
   const confirmMessage = confirmAction === 'complete'
     ? `Mark ${selectedIds.length} document${selectedIds.length !== 1 ? 's' : ''} as complete?`
+    : confirmAction === 'delete'
+    ? `Permanently delete ${selectedIds.length} document${selectedIds.length !== 1 ? 's' : ''}? This cannot be undone.`
     : `Set priority to "${bulkPriority}" for ${selectedIds.length} document${selectedIds.length !== 1 ? 's' : ''}?`
 
   return (
@@ -329,7 +353,7 @@ export default function DocumentListPage() {
 
         {/* Filter bar */}
         <form
-          onSubmit={(e) => { e.preventDefault(); setPage(1); setFilters(p => ({ ...p, search: searchQuery })); setAppliedFilters(p => ({ ...p, search: searchQuery })) }}
+          onSubmit={(e) => { e.preventDefault(); setPage(1); setAppliedFilters(f => ({ ...f, ...filters, search: searchQuery })) }}
           className="bg-white rounded-2xl shadow-card border border-stone-200 p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-3">
@@ -416,6 +440,16 @@ export default function DocumentListPage() {
                 Set Priority
               </button>
             </div>
+            {user?.role === 'admin' && (
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={() => setConfirmAction('delete')}
+                className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 transition-all shadow-sm"
+              >
+                Delete Selected
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setSelectedIds([])}
@@ -589,9 +623,10 @@ export default function DocumentListPage() {
       {/* Confirm dialog for bulk actions */}
       {confirmAction && (
         <ConfirmDialog
-          title={confirmAction === 'complete' ? 'Mark as Complete' : 'Set Priority'}
+          title={confirmAction === 'complete' ? 'Mark as Complete' : confirmAction === 'delete' ? 'Delete Documents' : 'Set Priority'}
           message={confirmMessage}
-          confirmLabel={confirmAction === 'complete' ? 'Mark Complete' : 'Set Priority'}
+          confirmLabel={confirmAction === 'complete' ? 'Mark Complete' : confirmAction === 'delete' ? 'Delete' : 'Set Priority'}
+          danger={confirmAction === 'delete'}
           onConfirm={handleConfirm}
           onCancel={() => setConfirmAction(null)}
         />

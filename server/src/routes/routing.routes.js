@@ -291,4 +291,85 @@ router.post('/:documentId/return', authenticate, async (req, res, next) => {
   }
 })
 
+// ---------------------------------------------------------------------------
+// POST /:documentId/forward-all — forward document to ALL other departments
+// ---------------------------------------------------------------------------
+router.post('/:documentId/forward-all', authenticate, async (req, res, next) => {
+  try {
+    const { documentId } = req.params
+    const { routing_note, cc_department_ids } = req.body
+
+    if (!routing_note || !routing_note.trim()) {
+      return res.status(400).json({
+        error: { code: 'BAD_REQUEST', message: 'routing_note is required and must not be empty.' },
+      })
+    }
+
+    const docResult = await pool.query(
+      'SELECT id, tracking_number, title, status, current_department_id FROM documents WHERE id = $1',
+      [documentId]
+    )
+    if (!docResult.rows.length) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
+    }
+    const doc = docResult.rows[0]
+    if (doc.status === 'completed') {
+      return res.status(403).json({
+        error: { code: 'DOCUMENT_COMPLETED', message: 'Cannot forward a completed document.' },
+      })
+    }
+
+    // Get all departments except current
+    const deptResult = await pool.query('SELECT id FROM departments WHERE id != $1', [doc.current_department_id])
+    const allDeptIds = deptResult.rows.map(r => r.id)
+
+    if (allDeptIds.length === 0) {
+      return res.status(400).json({ error: { code: 'NO_DEPARTMENTS', message: 'No other departments available.' } })
+    }
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      // Update document status to forwarded (keep current department)
+      await client.query(
+        `UPDATE documents SET status = 'forwarded', updated_at = NOW() WHERE id = $1`,
+        [documentId]
+      )
+
+      for (const toDeptId of allDeptIds) {
+        const routingResult = await client.query(
+          `INSERT INTO routings (document_id, from_department_id, to_department_id, routing_note, routing_type, routed_by)
+           VALUES ($1, $2, $3, $4, 'forward', $5) RETURNING id`,
+          [documentId, req.user.departmentId, toDeptId, routing_note.trim(), req.user.id]
+        )
+        const routingId = routingResult.rows[0].id
+
+        for (const ccDeptId of (Array.isArray(cc_department_ids) ? cc_department_ids : [])) {
+          await client.query('INSERT INTO routing_cc (routing_id, department_id) VALUES ($1, $2)', [routingId, ccDeptId])
+        }
+      }
+
+      // Tracking log
+      await client.query(
+        `INSERT INTO tracking_log (document_id, user_id, department_id, event_type, metadata)
+         VALUES ($1, $2, $3, 'forwarded', $4)`,
+        [documentId, req.user.id, req.user.departmentId,
+         JSON.stringify({ to_all_departments: true, department_ids: allDeptIds, routing_note: routing_note.trim() })]
+      )
+
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally { client.release() }
+
+    const updatedDoc = await pool.query(
+      'SELECT id, tracking_number, title, status, current_department_id FROM documents WHERE id = $1',
+      [documentId]
+    )
+    res.json(updatedDoc.rows[0])
+  } catch (err) { next(err) }
+})
+
 export default router

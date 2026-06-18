@@ -20,6 +20,7 @@ import commentsRoutes from './routes/comments.routes.js'
 import auditLogRoutes from './routes/audit-log.routes.js'
 import templatesRoutes from './routes/templates.routes.js'
 import recallRoutes from './routes/recall.routes.js'
+import profileRoutes from './routes/profile.routes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isProd = process.env.NODE_ENV === 'production'
@@ -68,6 +69,7 @@ app.use('/api/documents', commentsRoutes)
 app.use('/api/audit-log', auditLogRoutes)
 app.use('/api/templates', templatesRoutes)
 app.use('/api/documents', recallRoutes)
+app.use('/api/profile', profileRoutes)
 
 // ── Serve built React frontend in production ──────────────────────────────────
 // Vercel serves static assets via its edge/CDN, skip here

@@ -10,12 +10,13 @@ const router = Router()
 // All user management routes require authentication + admin role
 router.use(authenticate, requireAdmin)
 
-// GET / — list all users (exclude password_hash)
+// GET / — list all users (exclude password_hash, exclude deactivated)
 router.get('/', async (_req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, username, email, full_name, role, department_id, is_active, created_at, updated_at
        FROM users
+       WHERE is_active = true
        ORDER BY created_at DESC`
     )
     res.json(rows)

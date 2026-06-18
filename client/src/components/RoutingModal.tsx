@@ -25,6 +25,7 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
   const [toDeptId, setToDeptId] = useState('')
   const [routingNote, setRoutingNote] = useState('')
   const [ccDeptIds, setCcDeptIds] = useState<number[]>([])
+  const [forwardToAll, setForwardToAll] = useState(false)
   const [toDeptError, setToDeptError] = useState('')
   const [noteError, setNoteError] = useState('')
   const [apiError, setApiError] = useState('')
@@ -59,9 +60,9 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
   }
 
   function handleSubmitClick() {
-    const v1 = validateToDept()
     const v2 = validateNote()
-    if (!v1 || !v2) return
+    if (!forwardToAll && !validateToDept()) return
+    if (!v2) return
     setShowConfirm(true)
   }
 
@@ -70,17 +71,19 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
     setSubmitting(true)
     setApiError('')
     try {
-      const res = await fetch(`/api/documents/${documentId}/forward`, {
+      const endpoint = forwardToAll ? 'forward-all' : 'forward'
+      const body: Record<string, unknown> = {
+        routing_note: routingNote.trim(),
+        cc_department_ids: ccDeptIds.length > 0 ? ccDeptIds.map(String) : undefined,
+      }
+      if (!forwardToAll) body.to_department_id = toDeptId
+      const res = await fetch(`/api/documents/${documentId}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          to_department_id: toDeptId,
-          routing_note: routingNote.trim(),
-          cc_department_ids: ccDeptIds.length > 0 ? ccDeptIds.map(String) : undefined,
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -184,7 +187,22 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
             {noteError && <p className="mt-1.5 text-xs text-red-600">{noteError}</p>}
           </div>
 
-          {/* CC Departments */}
+          {/* Forward to All Departments */}
+          <label className="flex items-center gap-2.5 cursor-pointer rounded-lg px-3 py-2 hover:bg-stone-50 dark:hover:bg-stone-700/50 transition-colors border border-stone-200 dark:border-stone-600">
+            <input
+              type="checkbox"
+              checked={forwardToAll}
+              onChange={(e) => { setForwardToAll(e.target.checked); if (e.target.checked) setToDeptId('') }}
+              className="w-4 h-4 rounded border-stone-300 text-violet-600 focus:ring-violet-400 dark:border-stone-600"
+            />
+            <div>
+              <span className="text-sm font-semibold text-stone-700 dark:text-stone-200">Forward to All Departments</span>
+              <p className="text-xs text-stone-400 dark:text-stone-500">Send a copy to every department simultaneously</p>
+            </div>
+          </label>
+
+          {!forwardToAll && (
+          /* CC Departments */
           <div>
             <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2 dark:text-stone-400">
               CC Departments <span className="normal-case font-normal text-stone-400">(optional — for awareness only)</span>
@@ -209,6 +227,7 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
               </div>
             )}
           </div>
+          )}
 
           {/* Buttons */}
           <div className="flex justify-end gap-2.5 pt-2 border-t border-stone-100 dark:border-stone-700">
@@ -236,7 +255,7 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
       {showConfirm && (
         <ConfirmDialog
           title="Confirm Forward"
-          message={`Forward this document to ${selectedDept ? `${selectedDept.code} — ${selectedDept.name}` : 'the selected department'}?`}
+          message={forwardToAll ? 'Forward this document to ALL departments?' : `Forward this document to ${selectedDept ? `${selectedDept.code} — ${selectedDept.name}` : 'the selected department'}?`}
           confirmLabel="Forward"
           onConfirm={handleConfirm}
           onCancel={() => setShowConfirm(false)}

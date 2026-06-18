@@ -9,11 +9,17 @@ function buildScopeClause(user, startIdx) {
   const deptId = user.departmentId
   const params = [deptId]
   const p = `$${startIdx}`
+  if (user.role === 'department_head') {
+    const clause =
+      '(' +
+      `d.originating_department_id = ${p}` +
+      ` OR d.current_department_id = ${p}` +
+      ')'
+    return { clause, params }
+  }
   const clause =
     '(' +
     `d.current_department_id = ${p}` +
-    ' OR EXISTS (SELECT 1 FROM routings r WHERE r.document_id = d.id AND (r.from_department_id = ' + p + ' OR r.to_department_id = ' + p + '))' +
-    ' OR EXISTS (SELECT 1 FROM routing_cc rcc JOIN routings r2 ON r2.id = rcc.routing_id WHERE r2.document_id = d.id AND rcc.department_id = ' + p + ')' +
     ')'
   return { clause, params }
 }
