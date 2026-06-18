@@ -147,7 +147,8 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
             </div>
           )}
 
-          {/* Forward To */}
+          {!forwardToAll && (
+          /* Forward To */
           <div>
             <label htmlFor="forward-to" className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5 dark:text-stone-400">
               Forward To <span aria-hidden="true" className="text-red-500">*</span>
@@ -170,6 +171,7 @@ export default function RoutingModal({ documentId, token, onSuccess, onClose }: 
             </select>
             {toDeptError && <p className="mt-1.5 text-xs text-red-600">{toDeptError}</p>}
           </div>
+          )}
 
           {/* Routing Note */}
           <div>
