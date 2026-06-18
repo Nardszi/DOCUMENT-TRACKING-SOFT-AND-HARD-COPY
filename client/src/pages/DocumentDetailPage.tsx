@@ -516,7 +516,7 @@ export default function DocumentDetailPage() {
                               document.body.appendChild(a)
                               a.click()
                               document.body.removeChild(a)
-                              URL.revokeObjectURL(url)
+                              setTimeout(() => URL.revokeObjectURL(url), 5000)
                             } catch {
                               alert('Failed to download attachment.')
                             }
