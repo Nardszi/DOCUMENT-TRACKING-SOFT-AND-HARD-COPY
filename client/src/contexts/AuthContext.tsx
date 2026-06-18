@@ -33,7 +33,7 @@ function decodeToken(token: string): DecodedUser | null {
     return {
       id: decoded.sub,
       role: decoded.role,
-      departmentId: decoded.departmentId,
+      departmentId: String(decoded.departmentId),
       fullName: decoded.fullName,
     }
   } catch {

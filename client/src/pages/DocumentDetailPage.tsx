@@ -112,6 +112,7 @@ export default function DocumentDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [showRecallConfirm, setShowRecallConfirm] = useState(false)
   const [recallReason, setRecallReason] = useState('')
+  const [recallError, setRecallError] = useState('')
   const [recalling, setRecalling] = useState(false)
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null)
   const [archiving, setArchiving] = useState(false)
@@ -140,10 +141,15 @@ export default function DocumentDetailPage() {
     setCompleting(true)
     try {
       const res = await fetch(`/api/documents/${id}/complete`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error?.message || 'Failed to mark complete.')
+      }
       setDoc(prev => prev ? { ...prev, status: 'completed' } : prev)
       refetchDoc()
-    } catch { console.warn('Failed to mark complete') } finally { setCompleting(false); setShowCompleteConfirm(false) }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to mark complete.')
+    } finally { setCompleting(false); setShowCompleteConfirm(false) }
   }
 
   async function handleDelete() {
@@ -160,7 +166,8 @@ export default function DocumentDetailPage() {
   }
 
   async function handleRecall() {
-    if (!recallReason.trim()) return
+    if (!recallReason.trim()) { setRecallError('Please provide a reason for the recall.'); return }
+    setRecallError('')
     setRecalling(true)
     try {
       const res = await fetch(`/api/documents/${id}/recall`, {
@@ -210,18 +217,28 @@ export default function DocumentDetailPage() {
     setArchiving(true)
     try {
       const res = await fetch(`/api/documents/${id}/archive`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error?.message || 'Failed to archive.')
+      }
       refetchDoc()
-    } catch { console.warn('Failed to archive') } finally { setArchiving(false); setShowArchiveConfirm(false) }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to archive.')
+    } finally { setArchiving(false); setShowArchiveConfirm(false) }
   }
 
   async function handleRestore() {
     setArchiving(true)
     try {
       const res = await fetch(`/api/documents/${id}/restore`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error?.message || 'Failed to restore.')
+      }
       refetchDoc()
-    } catch { console.warn('Failed to restore') } finally { setArchiving(false) }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to restore.')
+    } finally { setArchiving(false) }
   }
 
   useEffect(() => {
@@ -629,7 +646,7 @@ export default function DocumentDetailPage() {
       <div role="dialog" aria-modal="true" aria-labelledby="recall-modal-title"
         className="fixed inset-0 z-50 flex items-center justify-center px-4">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
-          onClick={() => { setShowRecallConfirm(false); setRecallReason('') }} aria-hidden="true" />
+          onClick={() => { setShowRecallConfirm(false); setRecallReason(''); setRecallError('') }} aria-hidden="true" />
         <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-stone-800 border border-stone-100 dark:border-stone-700 shadow-2xl overflow-hidden animate-slide-up">
           {/* Header */}
           <div className="bg-violet-600 px-6 py-4">
@@ -659,10 +676,18 @@ export default function DocumentDetailPage() {
                 placeholder="e.g. Sent to wrong department. Please disregard."
                 className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400 dark:bg-stone-700 dark:border-stone-600 dark:text-stone-100 transition-all"
               />
+              {recallError && (
+                <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {recallError}
+                </p>
+              )}
             </div>
             <div className="flex gap-2.5 pt-1 border-t border-stone-100 dark:border-stone-700">
               <button type="button"
-                onClick={() => { setShowRecallConfirm(false); setRecallReason('') }}
+                onClick={() => { setShowRecallConfirm(false); setRecallReason(''); setRecallError('') }}
                 className="flex-1 min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300 dark:border-stone-600 dark:bg-stone-700 dark:text-stone-200 dark:hover:bg-stone-600 transition-all">
                 Cancel
               </button>

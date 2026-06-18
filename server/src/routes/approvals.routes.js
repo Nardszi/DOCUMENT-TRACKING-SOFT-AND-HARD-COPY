@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import pool from '../db/pool.js'
 import { authenticate } from '../middleware/auth.js'
-import { requireAdmin } from '../middleware/rbac.js'
+import { requireAdmin, requireHeadOrAdmin } from '../middleware/rbac.js'
 
 const router = Router()
 
@@ -102,7 +102,7 @@ router.delete('/flows/:flowId/steps/:stepId', authenticate, requireAdmin, async 
 // ── Document-level approvals ─────────────────────────────────────────────────
 
 // POST /api/approvals/:documentId/assign — assign an approval flow to a document
-router.post('/:documentId/assign', authenticate, async (req, res, next) => {
+router.post('/:documentId/assign', authenticate, requireHeadOrAdmin, async (req, res, next) => {
   try {
     const { documentId } = req.params
     const { flow_id } = req.body
@@ -171,13 +171,13 @@ router.post('/:approvalId/approve', authenticate, async (req, res, next) => {
       "UPDATE document_approvals SET status = 'approved', comment = $1, decided_by = $2, decided_at = NOW() WHERE id = $3",
       [comment || null, req.user.id, approvalId])
 
-    // Check if all steps are now approved — if so, update doc status to 'approved'
+    // Check if all steps are now approved — if so, update doc status
     const remaining = await pool.query(
       "SELECT id FROM document_approvals WHERE document_id = $1 AND status = 'pending' LIMIT 1",
       [ap.document_id])
     if (!remaining.rows.length) {
       await pool.query(
-        "UPDATE documents SET status = 'forwarded', updated_at = NOW() WHERE id = $1",
+        "UPDATE documents SET status = 'approved', updated_at = NOW() WHERE id = $1",
         [ap.document_id])
     }
 
