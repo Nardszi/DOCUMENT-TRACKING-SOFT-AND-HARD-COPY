@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import PriorityBadge from '../components/PriorityBadge'
-import DeadlineBadge from '../components/DeadlineBadge'
 import Skeleton from '../components/Skeleton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useApiQuery } from '../hooks/useApi'
@@ -19,17 +18,17 @@ interface DashboardData {
 }
 interface PendingApproval { id: string; document_id: string; title: string; tracking_number: string; label: string; created_at: string }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
 function timeAgo(iso: string) {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
   if (mins < 1) return 'now'
-  if (mins < 60) return `${mins}m`
+  if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h`
-  return `${Math.floor(hrs / 24)}d`
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
+function formatShortDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 export default function DashboardPage() {
@@ -44,16 +43,14 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
-        <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-6 py-5 border-b border-stone-700/50">
-          <div className="max-w-7xl mx-auto"><Skeleton className="h-6 w-48 mb-2" /><Skeleton className="h-4 w-64" /></div>
-        </div>
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
-          <div className="grid grid-cols-5 gap-3">
-            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="rounded-xl p-4 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/80"><Skeleton className="h-5 w-16 mb-2" /><Skeleton className="h-7 w-10" /></div>)}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+          <Skeleton className="h-7 w-40" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="rounded-xl p-5 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800"><Skeleton className="h-4 w-16 mb-3" /><Skeleton className="h-8 w-12" /></div>)}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-48 w-full rounded-xl" />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <Skeleton className="h-64 rounded-xl lg:col-span-3" />
+            <Skeleton className="h-64 rounded-xl lg:col-span-2" />
           </div>
         </div>
       </div>
@@ -70,98 +67,107 @@ export default function DashboardPage() {
 
   if (!data) return null
   const { counts, approaching_deadlines, bottleneck, forwarded_to_me } = data
-  const totalActions = forwarded_to_me.length + pendingApprovals.length
-
-  const stats = [
-    { label: 'Total', count: counts.total, color: 'text-stone-600 dark:text-stone-300', bg: 'bg-stone-100 dark:bg-stone-700' },
-    { label: 'Pending', count: counts.pending, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30' },
-    { label: 'In Progress', count: counts.in_progress, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/30' },
-    { label: 'Overdue', count: counts.overdue, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/30' },
-    { label: 'Done', count: counts.completed, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30' },
-  ]
+  const actionCount = forwarded_to_me.length + pendingApprovals.length
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-6 py-5 border-b border-stone-700/50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+        {/* Page header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Dashboard</h1>
-            <p className="text-stone-400 text-sm mt-0.5">Welcome back, <span className="text-amber-400 font-medium">{user?.fullName}</span></p>
+            <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100">Dashboard</h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Welcome back, {user?.fullName}</p>
           </div>
           <Link to="/documents/new"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-stone-900 shadow-sm transition-all">
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500 text-sm font-medium text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             New Document
           </Link>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 space-y-5">
-
-        {/* Stats — single clean row */}
-        <div className="grid grid-cols-5 gap-3">
-          {stats.map(s => (
-            <div key={s.label} className={`rounded-xl p-3 text-center ${s.bg} border border-stone-200/50 dark:border-stone-700/50`}>
-              <p className={`text-2xl font-bold ${s.color}`}>{s.count}</p>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mt-0.5">{s.label}</p>
-            </div>
-          ))}
+        {/* KPI strip — 4 cards, F-pattern top-left */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <KpiCard label="Total Documents" value={counts.total} href="/documents"
+            icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+            iconColor="text-stone-500 dark:text-stone-400" />
+          <KpiCard label="Needs Action" value={actionCount} href="/documents?status=forwarded"
+            icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            iconColor="text-amber-500" accent={actionCount > 0} />
+          <KpiCard label="Overdue" value={counts.overdue} href="/documents?status=overdue"
+            icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
+            iconColor="text-red-500" accent={counts.overdue > 0} />
+          <KpiCard label="Completed" value={counts.completed} href="/documents?status=completed"
+            icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+            iconColor="text-emerald-500" />
         </div>
 
-        {/* Bottleneck banner (admin) */}
+        {/* Bottleneck banner (admin only) */}
         {user?.role === 'admin' && bottleneck && (
-          <div className="rounded-xl border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800/40 px-4 py-3 flex items-center gap-3 text-sm">
-            <svg className="w-4 h-4 text-orange-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
-            <span className="text-orange-700 dark:text-orange-400"><span className="font-bold">{bottleneck.department.name}</span> has {bottleneck.open_count} open document{bottleneck.open_count !== 1 ? 's' : ''}</span>
+          <div className="rounded-xl border border-orange-200 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-900/50 px-4 py-3 flex items-center gap-3">
+            <svg className="w-4 h-4 text-orange-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" /></svg>
+            <p className="text-sm text-orange-700 dark:text-orange-400">
+              <span className="font-semibold">{bottleneck.department.name}</span> has {bottleneck.open_count} open document{bottleneck.open_count !== 1 ? 's' : ''}
+            </p>
           </div>
         )}
 
-        {/* Two-column: Needs Action + Deadlines */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Two-column: Action items + Deadlines */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-          {/* Needs Action — forwarded + approvals combined */}
-          <div className="bg-white dark:bg-stone-800/80 rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden">
-            <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between">
+          {/* Needs Action — left column (wider) */}
+          <div className="lg:col-span-3 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 overflow-hidden">
+            <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-100">Needs Action</h2>
-                {totalActions > 0 && <span className="text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">{totalActions}</span>}
+                <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">Needs Action</span>
+                {actionCount > 0 && <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">{actionCount}</span>}
               </div>
-              <Link to="/documents?status=forwarded" className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300">View all</Link>
+              <Link to="/documents?status=forwarded" className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">View all</Link>
             </div>
-            {totalActions === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-stone-400 dark:text-stone-500">
-                <svg className="w-8 h-8 mx-auto mb-2 text-stone-300 dark:text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg>
-                All caught up
+            {actionCount === 0 ? (
+              <div className="py-12 text-center">
+                <div className="w-10 h-10 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-5 h-5 text-stone-400 dark:text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <p className="text-sm text-stone-500 dark:text-stone-400">All caught up</p>
               </div>
             ) : (
-              <ul className="divide-y divide-stone-50 dark:divide-stone-700/60">
-                {forwarded_to_me.map(doc => (
+              <ul className="divide-y divide-stone-50 dark:divide-stone-800">
+                {forwarded_to_me.slice(0, 5).map(doc => (
                   <li key={doc.id}>
                     <button onClick={() => navigate(`/documents/${doc.id}`)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-700/40 transition-colors group">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 shrink-0">{doc.tracking_number}</span>
-                        <span className="text-sm text-stone-700 dark:text-stone-200 truncate flex-1 group-hover:text-violet-600 dark:group-hover:text-violet-400">{doc.title}</span>
-                        <span className="text-[11px] text-stone-400 dark:text-stone-500 shrink-0">{timeAgo(doc.forwarded_at)}</span>
+                      className="w-full text-left px-4 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors group flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                        <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" /></svg>
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[11px] text-violet-600 dark:text-violet-400">forwarded{doc.forwarded_by ? ` by ${doc.forwarded_by}` : ''}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-stone-800 dark:text-stone-200 truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">{doc.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-mono text-stone-400 dark:text-stone-500">{doc.tracking_number}</span>
+                          {doc.forwarded_by && <span className="text-xs text-stone-400 dark:text-stone-500">from {doc.forwarded_by}</span>}
+                        </div>
                       </div>
+                      <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">{timeAgo(doc.forwarded_at)}</span>
                     </button>
                   </li>
                 ))}
-                {pendingApprovals.map(a => (
+                {pendingApprovals.slice(0, 3).map(a => (
                   <li key={a.id}>
                     <button onClick={() => navigate(`/documents/${a.document_id}`)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-700/40 transition-colors group">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 shrink-0">{a.tracking_number}</span>
-                        <span className="text-sm text-stone-700 dark:text-stone-200 truncate flex-1 group-hover:text-amber-600 dark:group-hover:text-amber-400">{a.title}</span>
+                      className="w-full text-left px-4 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors group flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                        <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[11px] text-amber-600 dark:text-amber-400">approval: {a.label}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-stone-800 dark:text-stone-200 truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{a.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-mono text-stone-400 dark:text-stone-500">{a.tracking_number}</span>
+                          <span className="text-xs text-amber-600 dark:text-amber-400">{a.label}</span>
+                        </div>
                       </div>
                     </button>
                   </li>
@@ -170,32 +176,30 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Deadlines */}
-          <div className="bg-white dark:bg-stone-800/80 rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden">
-            <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500" />
-                <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-100">Upcoming Deadlines</h2>
-              </div>
-              <Link to="/documents" className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300">View all</Link>
+          {/* Deadlines — right column */}
+          <div className="lg:col-span-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 overflow-hidden">
+            <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
+              <span className="text-sm font-semibold text-stone-800 dark:text-stone-200">Deadlines</span>
+              <Link to="/documents" className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">View all</Link>
             </div>
             {approaching_deadlines.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-stone-400 dark:text-stone-500">
-                <svg className="w-8 h-8 mx-auto mb-2 text-stone-300 dark:text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg>
-                No deadlines in the next 7 days
+              <div className="py-12 text-center">
+                <div className="w-10 h-10 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-5 h-5 text-stone-400 dark:text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <p className="text-sm text-stone-500 dark:text-stone-400">No deadlines soon</p>
               </div>
             ) : (
-              <ul className="divide-y divide-stone-50 dark:divide-stone-700/60">
-                {approaching_deadlines.map(doc => (
+              <ul className="divide-y divide-stone-50 dark:divide-stone-800">
+                {approaching_deadlines.slice(0, 6).map(doc => (
                   <li key={doc.id}>
                     <button onClick={() => navigate(`/documents/${doc.id}`)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-700/40 transition-colors group">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 shrink-0">{doc.tracking_number}</span>
-                        <span className="text-sm text-stone-700 dark:text-stone-200 truncate flex-1 group-hover:text-red-600 dark:group-hover:text-red-400">{doc.title}</span>
-                        <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 shrink-0">{formatDate(doc.deadline)}</span>
+                      className="w-full text-left px-4 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors group">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-stone-700 dark:text-stone-300 truncate group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">{doc.title}</span>
+                        <span className="text-xs font-medium text-red-600 dark:text-red-400 shrink-0">{formatShortDate(doc.deadline)}</span>
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1.5">
                         <StatusBadge status={doc.status} />
                         <PriorityBadge priority={doc.priority} />
                       </div>
@@ -208,19 +212,19 @@ export default function DashboardPage() {
         </div>
 
         {/* Department Documents */}
-        <div className="bg-white dark:bg-stone-800/80 rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden">
-          <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between">
-            <div className="flex gap-1">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 overflow-hidden">
+          <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
+            <div className="flex items-center gap-1 bg-stone-100 dark:bg-stone-800 rounded-lg p-0.5">
               <button onClick={() => setDeptTab('department')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${deptTab === 'department' ? 'bg-amber-500 text-white' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${deptTab === 'department' ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
                 Department
               </button>
               <button onClick={() => setDeptTab('my')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${deptTab === 'my' ? 'bg-amber-500 text-white' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${deptTab === 'my' ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
                 My Documents
               </button>
             </div>
-            <Link to="/documents" className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300">View all</Link>
+            <Link to="/documents" className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">View all</Link>
           </div>
           <DeptDocSection tab={deptTab} user={user} navigate={navigate} />
         </div>
@@ -229,10 +233,26 @@ export default function DashboardPage() {
   )
 }
 
+function KpiCard({ label, value, href, icon, iconColor, accent }: {
+  label: string; value: number; href: string
+  icon: React.ReactNode; iconColor: string; accent?: boolean
+}) {
+  return (
+    <a href={href}
+      className={`block rounded-xl border p-4 transition-all hover:shadow-md ${accent ? 'border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-950/20' : 'border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900'}`}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wide">{label}</span>
+        <span className={iconColor}>{icon}</span>
+      </div>
+      <p className="text-3xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">{value}</p>
+    </a>
+  )
+}
+
 function DeptDocSection({ tab, user, navigate }: {
   tab: DeptTab; user: any; navigate: ReturnType<typeof useNavigate>
 }) {
-  const params = new URLSearchParams({ limit: '8', page: '1' })
+  const params = new URLSearchParams({ limit: '6', page: '1' })
   if (tab === 'department') params.set('department_id', String(user.departmentId))
   else params.set('created_by', String(user.id))
 
@@ -242,27 +262,39 @@ function DeptDocSection({ tab, user, navigate }: {
 
   const docs = Array.isArray(data?.data) ? data.data : []
 
-  if (isLoading) return <div className="p-4 space-y-3"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-full" /></div>
+  if (isLoading) return <div className="p-4 space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>
   if (docs.length === 0) return <div className="py-10 text-center text-sm text-stone-400 dark:text-stone-500">No documents</div>
+
   return (
-    <ul className="divide-y divide-stone-50 dark:divide-stone-700/60">
-      {docs.map(doc => (
-        <li key={doc.id}>
-          <button onClick={() => navigate(`/documents/${doc.id}`)}
-            className="w-full text-left px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-700/40 transition-colors group">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 shrink-0">{doc.tracking_number}</span>
-              <span className="text-sm text-stone-700 dark:text-stone-200 truncate flex-1 group-hover:text-amber-600 dark:group-hover:text-amber-400">{doc.title}</span>
-              <span className="text-[11px] text-stone-400 dark:text-stone-500 shrink-0">{doc.current_department.code}</span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-1">
-              <StatusBadge status={doc.status} />
-              <PriorityBadge priority={doc.priority} />
-              {doc.deadline && <DeadlineBadge deadline={doc.deadline} isOverdue={doc.is_overdue} />}
-            </div>
-          </button>
-        </li>
-      ))}
-    </ul>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-stone-100 dark:border-stone-800">
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide">Document</th>
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide hidden sm:table-cell">Status</th>
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide hidden md:table-cell">Priority</th>
+            <th className="text-left px-4 py-2.5 text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide hidden lg:table-cell">Dept</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
+          {docs.map(doc => (
+            <tr key={doc.id} onClick={() => navigate(`/documents/${doc.id}`)}
+              className="hover:bg-stone-50 dark:hover:bg-stone-800/50 cursor-pointer transition-colors">
+              <td className="px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-stone-400 dark:text-stone-500">{doc.tracking_number}</span>
+                  <span className="text-sm text-stone-700 dark:text-stone-300 truncate max-w-[200px]">{doc.title}</span>
+                </div>
+              </td>
+              <td className="px-4 py-2.5 hidden sm:table-cell"><StatusBadge status={doc.status} /></td>
+              <td className="px-4 py-2.5 hidden md:table-cell"><PriorityBadge priority={doc.priority} /></td>
+              <td className="px-4 py-2.5 hidden lg:table-cell">
+                <span className="text-xs text-stone-500 dark:text-stone-400">{doc.current_department.code}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
