@@ -6,7 +6,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') })
 
 import http from 'http'
 import app from './app.js'
-import { startDeadlineJob } from './jobs/deadline.job.js'
+import { startAllJobs } from './jobs/scheduler.js'
 import { runMigrations } from './db/migrations/migrate.js'
 
 const PORT = parseInt(process.env.PORT || '3000', 10)
@@ -28,7 +28,7 @@ async function start() {
   try {
     await runMigrations()
     console.log('[startup] Database ready.')
-    startDeadlineJob()
+    startAllJobs()
   } catch (err) {
     console.error('[startup] Migration failed:', err.message)
     // Don't exit — server is still running, DB may connect later
