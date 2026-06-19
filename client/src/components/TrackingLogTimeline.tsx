@@ -8,24 +8,20 @@ export interface TrackingEntry {
   department: { id: number; code: string; name: string }
 }
 
-const EVENT_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-  created:         { label: 'Created',         color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',         dot: 'bg-sky-500' },
-  forwarded:       { label: 'Forwarded',       color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300', dot: 'bg-violet-500' },
-  returned:        { label: 'Returned',        color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',   dot: 'bg-amber-500' },
-  action_recorded: { label: 'Action Recorded', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',       dot: 'bg-blue-500' },
-  completed:       { label: 'Completed',       color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300', dot: 'bg-emerald-500' },
-  edited:          { label: 'Edited',          color: 'bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300',      dot: 'bg-stone-400' },
+const EVENT_CONFIG: Record<string, { label: string; icon: string; bg: string; text: string }> = {
+  created:         { label: 'Created',         icon: 'M12 4v16m8-8H4',            bg: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-700 dark:text-sky-300' },
+  forwarded:       { label: 'Forwarded',       icon: 'M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4', bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-700 dark:text-violet-300' },
+  returned:        { label: 'Returned',        icon: 'M21 10H11a5 5 0 00-5 5v2m10-7l-4 4m4-4l-4-4', bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300' },
+  action_recorded: { label: 'Action',          icon: 'M9 12l2 2 4-4',             bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
+  completed:       { label: 'Completed',       icon: 'M5 13l4 4L19 7',            bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300' },
+  edited:          { label: 'Edited',          icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', bg: 'bg-stone-100 dark:bg-stone-700', text: 'text-stone-600 dark:text-stone-300' },
 }
 
 function formatDateTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric',
+    month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
-}
-
-function getInitials(name: string) {
-  return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
 }
 
 export default function TrackingLogTimeline({ entries }: { entries: TrackingEntry[] }) {
@@ -34,66 +30,47 @@ export default function TrackingLogTimeline({ entries }: { entries: TrackingEntr
   }
 
   return (
-    <ol className="space-y-4">
+    <ol className="space-y-0">
       {entries.map((entry, idx) => {
-        const cfg = EVENT_CONFIG[entry.event_type] ?? { label: entry.event_type, color: 'bg-stone-100 text-stone-600', dot: 'bg-stone-400' }
+        const cfg = EVENT_CONFIG[entry.event_type] ?? { label: entry.event_type, icon: 'M12 6v6m0 0v6m0-6h6m-6 0H6', bg: 'bg-stone-100', text: 'text-stone-600' }
         const isLast = idx === entries.length - 1
-
-        // Extract destination dept + routing note from metadata for forwarded/returned
-        const toDeptId = entry.metadata?.to_department_id as string | undefined
         const toDeptCode = entry.metadata?.to_department_code as string | undefined
         const routingNote = entry.metadata?.routing_note as string | undefined
 
         return (
-          <li key={entry.id} className="flex gap-3">
-            {/* Timeline line + dot */}
-            <div className="flex flex-col items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
-                entry.event_type === 'completed' ? 'bg-emerald-500' :
-                entry.event_type === 'forwarded' ? 'bg-violet-500' :
-                entry.event_type === 'returned'  ? 'bg-amber-500' :
-                entry.event_type === 'created'   ? 'bg-sky-500' : 'bg-stone-400'
-              }`}>
-                {getInitials(entry.user.full_name)}
+          <li key={entry.id} className="flex gap-3 relative">
+            {/* Timeline connector */}
+            <div className="flex flex-col items-center w-8">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${cfg.bg}`}>
+                <svg className={`w-4 h-4 ${cfg.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={cfg.icon} />
+                </svg>
               </div>
-              {!isLast && <div className="w-px flex-1 bg-stone-200 dark:bg-stone-700 mt-1" />}
+              {!isLast && <div className="w-px flex-1 bg-stone-200 dark:bg-stone-700 my-1" />}
             </div>
 
             {/* Content */}
             <div className="flex-1 pb-4 min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                <span className="text-sm font-semibold text-stone-900 dark:text-stone-100 truncate">
-                  {entry.user.full_name}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-stone-800 dark:text-stone-200">{entry.user.full_name}</span>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold ${cfg.bg} ${cfg.text}`}>
+                  {cfg.label}
                 </span>
-                <span className="text-xs text-stone-400 dark:text-stone-500">·</span>
-                <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
-                  {entry.department.code}
-                </span>
-                {/* Show destination for forwarded/returned */}
-                {(entry.event_type === 'forwarded' || entry.event_type === 'returned') && (toDeptCode || toDeptId) && (
-                  <>
-                    <svg className="w-3 h-3 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                    <span className="text-xs font-semibold text-stone-700 dark:text-stone-200">
-                      {toDeptCode ?? toDeptId}
-                    </span>
-                  </>
+                {toDeptCode && (
+                  <span className="text-[11px] text-stone-400 dark:text-stone-500 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                    {toDeptCode}
+                  </span>
                 )}
               </div>
 
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.color}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                {cfg.label}
-              </span>
-
-              {(entry.remarks || (entry.event_type === 'forwarded' && routingNote)) && (
-                <p className="text-xs text-stone-600 dark:text-stone-400 mt-1.5 leading-relaxed">{entry.remarks || routingNote}</p>
+              {routingNote && (
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 leading-relaxed bg-stone-50 dark:bg-stone-800 rounded-lg px-2.5 py-1.5 border border-stone-100 dark:border-stone-700">
+                  {routingNote}
+                </p>
               )}
 
-              <time className="text-[11px] text-stone-400 dark:text-stone-500 mt-1 block">
-                {formatDateTime(entry.created_at)}
-              </time>
+              <time className="text-[11px] text-stone-400 dark:text-stone-500 mt-1 block">{formatDateTime(entry.created_at)}</time>
             </div>
           </li>
         )

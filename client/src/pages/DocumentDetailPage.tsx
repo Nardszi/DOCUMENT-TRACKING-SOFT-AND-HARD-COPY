@@ -338,7 +338,8 @@ export default function DocumentDetailPage() {
   const isCompleted = doc.status === 'completed'
   const canMarkComplete = user?.role === 'department_head' || user?.role === 'admin'
   const canDelete = user?.role === 'admin'
-  // Can recall if: originating dept user (or admin), doc is not completed, and doc is not already in originating dept
+  const canForward = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id))
+  const canReturn = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id))
   const canRecall = !isCompleted
     && doc.current_department.id !== doc.originating_department.id
     && (user?.role === 'admin' || user?.departmentId === String(doc.originating_department.id))
@@ -408,40 +409,57 @@ export default function DocumentDetailPage() {
         {/* Action bar */}
         <div className="bg-white rounded-2xl border border-stone-200 shadow-card p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700">
           <span className="block text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Actions</span>
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-            <button disabled={isCompleted} onClick={() => setShowForwardModal(true)}
-              className="min-h-[44px] px-3 py-2.5 rounded-xl bg-purple-600 text-sm font-semibold text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
-              Forward
-            </button>
-            <button disabled={isCompleted} onClick={() => setShowReturnModal(true)}
-              className="min-h-[44px] px-3 py-2.5 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
-              Return
-            </button>
-            <button disabled={isCompleted} onClick={() => setShowActionModal(true)}
-              className="min-h-[44px] px-3 py-2.5 rounded-xl bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
-              Record Action
-            </button>
-            {canMarkComplete && (
-              <button disabled={isCompleted || completing} onClick={() => setShowCompleteConfirm(true)}
-                className="min-h-[44px] px-3 py-2.5 rounded-xl bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
-                {completing ? 'Completing…' : 'Mark Complete'}
+          <div className="flex flex-wrap gap-2">
+            {/* Routing group */}
+            {canForward && (
+              <button onClick={() => setShowForwardModal(true)}
+                className="min-h-[40px] px-3 py-2 rounded-lg bg-violet-600 text-sm font-medium text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 transition-colors">
+                Forward
+              </button>
+            )}
+            {canReturn && (
+              <button onClick={() => setShowReturnModal(true)}
+                className="min-h-[40px] px-3 py-2 rounded-lg bg-amber-500 text-sm font-medium text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors">
+                Return
               </button>
             )}
             {canRecall && (
               <button onClick={() => setShowRecallConfirm(true)} disabled={recalling}
-                className="min-h-[44px] px-3 py-2.5 rounded-xl bg-violet-600 text-sm font-semibold text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
+                className="min-h-[40px] px-3 py-2 rounded-lg bg-stone-600 text-sm font-medium text-white hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-50 transition-colors">
                 Recall
               </button>
             )}
+
+            {/* Separator */}
+            {(canForward || canReturn || canRecall) && <div className="w-px bg-stone-200 dark:bg-stone-600 my-1" />}
+
+            {/* Work group */}
+            {!isCompleted && (
+              <button onClick={() => setShowActionModal(true)}
+                className="min-h-[40px] px-3 py-2 rounded-lg border border-stone-200 dark:border-stone-600 text-sm font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors">
+                Record Action
+              </button>
+            )}
+            {canMarkComplete && (
+              <button disabled={isCompleted || completing} onClick={() => setShowCompleteConfirm(true)}
+                className="min-h-[40px] px-3 py-2 rounded-lg bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50 transition-colors">
+                {completing ? 'Completing…' : 'Mark Complete'}
+              </button>
+            )}
+
+            {/* Separator */}
+            {canMarkComplete && <div className="w-px bg-stone-200 dark:bg-stone-600 my-1" />}
+
+            {/* Archive group */}
             {canArchive && (
               doc.is_archived ? (
                 <button onClick={handleRestore} disabled={archiving}
-                  className="min-h-[44px] px-3 py-2.5 rounded-xl bg-stone-600 text-sm font-semibold text-white hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
+                  className="min-h-[40px] px-3 py-2 rounded-lg border border-stone-200 dark:border-stone-600 text-sm font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50 transition-colors">
                   {archiving ? 'Restoring…' : 'Restore'}
                 </button>
               ) : (
                 <button onClick={() => setShowArchiveConfirm(true)} disabled={archiving}
-                  className="min-h-[44px] px-3 py-2.5 rounded-xl bg-stone-600 text-sm font-semibold text-white hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-center">
+                  className="min-h-[40px] px-3 py-2 rounded-lg border border-stone-200 dark:border-stone-600 text-sm font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50 transition-colors">
                   Archive
                 </button>
               )
@@ -649,8 +667,8 @@ export default function DocumentDetailPage() {
       </div>
     </div>
 
-    {showForwardModal && id && <RoutingModal documentId={id} token={token ?? ''} onSuccess={handleRoutingSuccess} onClose={() => setShowForwardModal(false)} />}
-    {showReturnModal && id && <ReturnModal documentId={id} token={token ?? ''} onSuccess={handleRoutingSuccess} onClose={() => setShowReturnModal(false)} />}
+    {showForwardModal && id && <RoutingModal documentId={id} token={token ?? ''} currentDepartmentId={doc.current_department.id} onSuccess={handleRoutingSuccess} onClose={() => setShowForwardModal(false)} />}
+    {showReturnModal && id && <ReturnModal documentId={id} token={token ?? ''} returnToDept={doc.originating_department} onSuccess={handleRoutingSuccess} onClose={() => setShowReturnModal(false)} />}
     {showActionModal && id && <ActionModal documentId={id} token={token ?? ''} onSuccess={refetchDoc} onClose={() => setShowActionModal(false)} />}
     {showCompleteConfirm && (
       <ConfirmDialog title="Mark Document Complete"
