@@ -100,7 +100,37 @@ router.get('/', authenticate, async (req, res, next) => {
       }
     }
 
-    res.json({ counts, recently_updated, approaching_deadlines, bottleneck })
+    // Documents forwarded to my department (awaiting action)
+    let forwarded_to_me = []
+    if (req.user.role !== 'admin' && req.user.departmentId) {
+      const fwdResult = await pool.query(
+        `SELECT d.id, d.tracking_number, d.title, d.status, d.priority, d.deadline,
+                d.current_department_id, cd.code AS dept_code, cd.name AS dept_name,
+                d.updated_at,
+                r.created_at AS forwarded_at,
+                u.full_name AS forwarded_by_name,
+                r.note AS routing_note
+         FROM documents d
+         JOIN departments cd ON cd.id = d.current_department_id
+         JOIN routings r ON r.document_id = d.id AND r.to_department_id = $1
+         LEFT JOIN users u ON u.id = r.from_user_id
+         WHERE d.status = 'forwarded'
+         ORDER BY r.created_at DESC
+         LIMIT 10`,
+        [req.user.departmentId]
+      )
+      forwarded_to_me = fwdResult.rows.map(r => ({
+        id: r.id, tracking_number: r.tracking_number, title: r.title,
+        status: r.status, priority: r.priority, deadline: r.deadline,
+        current_department: { id: r.current_department_id, code: r.dept_code, name: r.dept_name },
+        updated_at: r.updated_at,
+        forwarded_at: r.forwarded_at,
+        forwarded_by: r.forwarded_by_name,
+        routing_note: r.routing_note,
+      }))
+    }
+
+    res.json({ counts, recently_updated, approaching_deadlines, bottleneck, forwarded_to_me })
   } catch (err) {
     next(err)
   }

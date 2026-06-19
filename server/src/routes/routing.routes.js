@@ -181,11 +181,13 @@ router.post('/:documentId/return', authenticate, async (req, res, next) => {
 
     const doc = docResult.rows[0]
     
-    // Block if already completed
-    if (doc.status === 'completed') {
-      return res.status(403).json({
-        error: { code: 'DOCUMENT_COMPLETED', message: 'Cannot return a completed document.' },
-      })
+    // Block if not forwarded (only forwarded documents can be returned)
+    if (doc.status !== 'forwarded') {
+      const code = doc.status === 'completed' ? 'DOCUMENT_COMPLETED' : 'INVALID_STATUS'
+      const msg = doc.status === 'completed'
+        ? 'Cannot return a completed document.'
+        : `Cannot return a document with status '${doc.status}'. Only forwarded documents can be returned.`
+      return res.status(403).json({ error: { code, message: msg } })
     }
 
     // Find previous sender: most recent routing where to_department_id = current dept

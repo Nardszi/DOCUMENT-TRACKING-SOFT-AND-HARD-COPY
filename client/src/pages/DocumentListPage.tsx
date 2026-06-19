@@ -101,15 +101,6 @@ export default function DocumentListPage() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  function handleSearchSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSuggestionsOpen(false)
-    setHighlightedIdx(-1)
-    setPage(1)
-    setFilters(p => ({ ...p, search: searchQuery }))
-    setAppliedFilters(p => ({ ...p, search: searchQuery }))
-  }
-
   function handleSuggestionSelect(doc: Document) {
     setSuggestionsOpen(false)
     navigate(`/documents/${doc.id}`)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
@@ -6,6 +6,7 @@ import PriorityBadge from '../components/PriorityBadge'
 import DeadlineBadge from '../components/DeadlineBadge'
 import Skeleton, { CardSkeleton } from '../components/Skeleton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useApiQuery } from '../hooks/useApi'
 
 interface Department { id: string; code: string; name: string }
 interface DeadlineDoc { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string; current_department: Department }
@@ -15,10 +16,25 @@ interface DashboardData {
   counts: { total: number; pending: number; in_progress: number; forwarded: number; returned: number; overdue: number; completed: number }
   approaching_deadlines: DeadlineDoc[]
   bottleneck: { department: Department; open_count: number } | null
+  forwarded_to_me: ForwardedDoc[]
 }
+interface ForwardedDoc { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string | null; current_department: Department; updated_at: string; forwarded_at: string; forwarded_by: string; routing_note: string }
+interface PendingApproval { id: string; document_id: string; title: string; tracking_number: string; label: string; created_at: string }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function formatRelativeTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  return formatDate(iso)
 }
 
 interface StatCardProps {
@@ -46,39 +62,22 @@ function StatCard({ label, count, linkTo, accent, icon, iconBg }: StatCardProps)
 
 export default function DashboardPage() {
   useDocumentTitle('Dashboard')
-  const { user, token } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [deptTab, setDeptTab] = useState<DeptTab>('department')
-  const [deptDocs, setDeptDocs] = useState<DeptDoc[]>([])
-  const [deptDocsLoading, setDeptDocsLoading] = useState(false)
-  const [pendingApprovals, setPendingApprovals] = useState<{ id: string; document_id: string; title: string; tracking_number: string; label: string; created_at: string }[]>([])
 
-  useEffect(() => {
-    if (!token) return
-    setLoading(true)
-    fetch('/api/dashboard', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => { if (!r.ok) throw new Error('Failed to load dashboard'); return r.json() })
-      .then(d => setData(d))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false))
-    fetch('/api/approvals/pending', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setPendingApprovals(data))
-      .catch(() => console.warn('Failed to load pending approvals'))
-  }, [token])
+  const { data, isLoading, error } = useApiQuery<DashboardData>('/api/dashboard')
+  const { data: pendingApprovals = [] } = useApiQuery<PendingApproval[]>('/api/approvals/pending', { retry: false })
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
         <div className="bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 px-6 py-5 border-b border-stone-700/50">
           <div className="max-w-7xl mx-auto"><Skeleton className="h-6 w-48 mb-2" /><Skeleton className="h-4 w-64" /></div>
         </div>
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="rounded-2xl p-4 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/80"><Skeleton className="h-9 w-9 mb-3" /><Skeleton className="h-6 w-16 mb-1" /><Skeleton className="h-3 w-12" /></div>)}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
+            {Array.from({ length: 7 }).map((_, i) => <div key={i} className="rounded-2xl p-4 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/80"><Skeleton className="h-9 w-9 mb-3" /><Skeleton className="h-6 w-16 mb-1" /><Skeleton className="h-3 w-12" /></div>)}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <CardSkeleton count={5} />
@@ -92,13 +91,13 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 p-8">
-        <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-800/40 dark:text-red-400">{error}</div>
+        <div className="rounded-2xl bg-red-50 border border-red-200 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-800/40 dark:text-red-400">{error.message}</div>
       </div>
     )
   }
 
   if (!data) return null
-  const { counts, approaching_deadlines, bottleneck } = data
+  const { counts, approaching_deadlines, bottleneck, forwarded_to_me } = data
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
@@ -122,7 +121,7 @@ export default function DashboardPage() {
           <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-8 sm:pb-6">
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 sm:gap-3">
           <StatCard label="Total" count={counts.total} linkTo="/documents"
             accent="bg-stone-600" iconBg="bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
@@ -134,6 +133,14 @@ export default function DashboardPage() {
           <StatCard label="In Progress" count={counts.in_progress} linkTo="/documents?status=in_progress"
             accent="bg-amber-500" iconBg="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
+          />
+          <StatCard label="Forwarded" count={counts.forwarded} linkTo="/documents?status=forwarded"
+            accent="bg-violet-500" iconBg="bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400"
+            icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" /></svg>}
+          />
+          <StatCard label="Returned" count={counts.returned} linkTo="/documents?status=returned"
+            accent="bg-rose-500" iconBg="bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400"
+            icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" /></svg>}
           />
           <StatCard label="Overdue" count={counts.overdue} linkTo="/documents?status=overdue"
             accent="bg-red-500" iconBg="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
@@ -159,6 +166,46 @@ export default function DashboardPage() {
                 <span className="font-bold">{bottleneck.department.name}</span> ({bottleneck.department.code}) — {bottleneck.open_count} open document{bottleneck.open_count !== 1 ? 's' : ''}
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Forwarded to My Department */}
+        {forwarded_to_me.length > 0 && (
+          <div className="bg-white rounded-2xl border border-violet-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-violet-800/40">
+            <div className="px-5 py-4 border-b border-violet-100 dark:border-violet-800/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Forwarded to My Department</h2>
+                  <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{forwarded_to_me.length} document{forwarded_to_me.length !== 1 ? 's' : ''} awaiting your department's action</p>
+                </div>
+              </div>
+              <Link to="/documents?status=forwarded" className="text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400">View all →</Link>
+            </div>
+            <ul className="divide-y divide-stone-50 dark:divide-stone-700/60">
+              {forwarded_to_me.map(doc => (
+                <li key={doc.id}>
+                  <button onClick={() => navigate(`/documents/${doc.id}`)}
+                    className="w-full text-left px-5 py-3 min-h-[52px] hover:bg-stone-50 dark:hover:bg-stone-700/40 transition-colors group">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[11px] font-mono text-stone-400 dark:text-stone-500 shrink-0 bg-stone-100 dark:bg-stone-700 px-1.5 py-0.5 rounded">{doc.tracking_number}</span>
+                      <span className="text-sm font-medium text-stone-800 dark:text-stone-100 truncate flex-1 min-w-0 group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors">{doc.title}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <StatusBadge status={doc.status} />
+                      <PriorityBadge priority={doc.priority} />
+                      {doc.forwarded_by && <span className="text-xs text-stone-400 dark:text-stone-500">from {doc.forwarded_by}</span>}
+                      {doc.routing_note && <span className="text-xs text-stone-400 dark:text-stone-500 italic truncate max-w-[200px]">"{doc.routing_note}"</span>}
+                      <span className="text-xs text-stone-400 dark:text-stone-500 ml-auto">{formatRelativeTime(doc.forwarded_at)}</span>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -242,57 +289,42 @@ export default function DashboardPage() {
         <div className="bg-white rounded-2xl border border-stone-200 shadow-card overflow-hidden dark:bg-stone-800/80 dark:border-stone-700">
           <div className="px-5 pt-4 pb-0 flex items-center justify-between">
             <div className="flex gap-1">
-              <button onClick={() => { setDeptTab('department'); setDeptDocs([]) }}
+              <button onClick={() => setDeptTab('department')}
                 className={`px-4 py-2 rounded-t-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${deptTab === 'department' ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
                 Department Documents
               </button>
-              <button onClick={() => { setDeptTab('my'); setDeptDocs([]) }}
+              <button onClick={() => setDeptTab('my')}
                 className={`px-4 py-2 rounded-t-xl text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${deptTab === 'my' ? 'bg-amber-500 text-white shadow-sm' : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'}`}>
                 My Documents
               </button>
             </div>
             <Link to="/documents" className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 transition-colors shrink-0">View all →</Link>
           </div>
-          <DeptDocSection
-            tab={deptTab}
-            user={user}
-            token={token}
-            deptDocs={deptDocs}
-            setDeptDocs={setDeptDocs}
-            loading={deptDocsLoading}
-            setLoading={setDeptDocsLoading}
-            navigate={navigate}
-          />
+          <DeptDocSection tab={deptTab} user={user} navigate={navigate} />
         </div>
       </div>
     </div>
   )
 }
 
-function DeptDocSection({ tab, user, token, deptDocs, setDeptDocs, loading, setLoading, navigate }: {
-  tab: DeptTab; user: any; token: string | null
-  deptDocs: DeptDoc[]; setDeptDocs: (d: DeptDoc[]) => void
-  loading: boolean; setLoading: (v: boolean) => void
-  navigate: ReturnType<typeof useNavigate>
+function DeptDocSection({ tab, user, navigate }: {
+  tab: DeptTab; user: any; navigate: ReturnType<typeof useNavigate>
 }) {
-  useEffect(() => {
-    if (!user?.departmentId || !token) return
-    setLoading(true)
-    const params = new URLSearchParams({ limit: '10', page: '1' })
-    if (tab === 'department') params.set('department_id', String(user.departmentId))
-    else params.set('created_by', String(user.id))
-    fetch(`/api/documents?${params}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(data => setDeptDocs(Array.isArray(data.data) ? data.data : []))
-      .catch(() => setDeptDocs([]))
-      .finally(() => setLoading(false))
-  }, [tab, user, token, setDeptDocs, setLoading])
+  const params = new URLSearchParams({ limit: '10', page: '1' })
+  if (tab === 'department') params.set('department_id', String(user.departmentId))
+  else params.set('created_by', String(user.id))
 
-  if (loading) return <div className="p-5 space-y-3"><Skeleton className="h-5 w-48" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-full" /></div>
-  if (deptDocs.length === 0) return <div className="py-10 text-center text-sm text-stone-400">{tab === 'department' ? 'No documents in your department.' : 'No documents created by you.'}</div>
+  const { data, isLoading } = useApiQuery<{ data: DeptDoc[] }>(`/api/documents?${params}`, {
+    queryKey: ['documents', tab, user.departmentId, user.id],
+  })
+
+  const docs = Array.isArray(data?.data) ? data.data : []
+
+  if (isLoading) return <div className="p-5 space-y-3"><Skeleton className="h-5 w-48" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-full" /></div>
+  if (docs.length === 0) return <div className="py-10 text-center text-sm text-stone-400">{tab === 'department' ? 'No documents in your department.' : 'No documents created by you.'}</div>
   return (
     <ul className="divide-y divide-stone-50 dark:divide-stone-700/60">
-      {deptDocs.map(doc => (
+      {docs.map(doc => (
         <li key={doc.id}>
           <button onClick={() => navigate(`/documents/${doc.id}`)}
             className="w-full text-left px-5 py-3 min-h-[52px] hover:bg-stone-50 dark:hover:bg-stone-700/40 transition-colors group">
