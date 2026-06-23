@@ -90,6 +90,44 @@ router.post('/flows/:id/steps', authenticate, requireAdmin, async (req, res, nex
   } catch (err) { next(err) }
 })
 
+// PATCH /api/approvals/flows/:flowId/steps/reorder — reorder steps (admin only)
+router.patch('/flows/:flowId/steps/reorder', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { ordered_ids } = req.body
+    if (!Array.isArray(ordered_ids) || ordered_ids.length === 0)
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'ordered_ids must be a non-empty array.' } })
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      for (let i = 0; i < ordered_ids.length; i++) {
+        await client.query(
+          'UPDATE approval_flow_steps SET step_order = $1 WHERE id = $2 AND flow_id = $3',
+          [i + 1, ordered_ids[i], req.params.flowId])
+      }
+      await client.query('COMMIT')
+    } catch (err) { await client.query('ROLLBACK'); throw err } finally { client.release() }
+    res.json({ message: 'Steps reordered.' })
+  } catch (err) { next(err) }
+})
+
+// PATCH /api/approvals/flows/:flowId/steps/:stepId — update step (admin only)
+router.patch('/flows/:flowId/steps/:stepId', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { label, department_id, approver_id, approver_role } = req.body
+    const sets = []; const vals = []
+    if (label !== undefined) { vals.push(label.trim()); sets.push('label = $' + vals.length) }
+    if (department_id !== undefined) { vals.push(department_id || null); sets.push('department_id = $' + vals.length) }
+    if (approver_id !== undefined) { vals.push(approver_id || null); sets.push('approver_id = $' + vals.length) }
+    if (approver_role !== undefined) { vals.push(approver_role || null); sets.push('approver_role = $' + vals.length) }
+    if (!sets.length) return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'No fields to update.' } })
+    vals.push(req.params.stepId, req.params.flowId)
+    const result = await pool.query(
+      'UPDATE approval_flow_steps SET ' + sets.join(', ') + ' WHERE id = $' + (vals.length - 1) + ' AND flow_id = $' + vals.length + ' RETURNING id', vals)
+    if (!result.rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Step not found.' } })
+    res.json({ message: 'Step updated.' })
+  } catch (err) { next(err) }
+})
+
 // DELETE /api/approvals/flows/:flowId/steps/:stepId — remove step (admin only)
 router.delete('/flows/:flowId/steps/:stepId', authenticate, requireAdmin, async (req, res, next) => {
   try {
@@ -232,21 +270,123 @@ router.get('/:documentId/approvals', authenticate, async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
-// GET /api/approvals/pending — list pending approvals for current user
+// GET /api/approvals/pending — list pending approvals for current user (enriched)
 router.get('/pending', authenticate, async (req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT da.id, da.document_id, da.step_order, da.label, da.status, da.created_at,
-              d.tracking_number, d.title, d.status AS doc_status,
-              u.full_name AS creator_name
+              d.tracking_number, d.title, d.description, d.status AS doc_status,
+              d.priority, d.deadline, d.created_at AS doc_created_at,
+              u.full_name AS creator_name,
+              (SELECT COUNT(*) FROM document_approvals WHERE document_id = da.document_id) AS total_steps,
+              (SELECT COUNT(*) FROM document_approvals WHERE document_id = da.document_id AND status = 'approved') AS approved_steps
        FROM document_approvals da
        JOIN documents d ON d.id = da.document_id
        JOIN users u ON u.id = d.created_by
        WHERE da.status = 'pending'
          AND (da.assigned_to = $1 OR (da.assigned_to IS NULL AND da.assigned_department_id = $2))
-       ORDER BY da.created_at DESC`,
+       ORDER BY
+         CASE d.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
+         d.deadline ASC NULLS LAST,
+         da.created_at DESC`,
       [req.user.id, req.user.departmentId])
     res.json(result.rows)
+  } catch (err) { next(err) }
+})
+
+// GET /api/approvals/history — list decided approvals for current user
+router.get('/history', authenticate, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT da.id, da.document_id, da.step_order, da.label, da.status, da.comment, da.decided_at,
+              d.tracking_number, d.title, d.priority,
+              dec.full_name AS decided_by_name,
+              creator.full_name AS creator_name
+       FROM document_approvals da
+       JOIN documents d ON d.id = da.document_id
+       JOIN users creator ON creator.id = d.created_by
+       LEFT JOIN users dec ON dec.id = da.decided_by
+       WHERE da.status IN ('approved', 'rejected')
+         AND (da.assigned_to = $1 OR (da.assigned_to IS NULL AND da.assigned_department_id = $2) OR da.decided_by = $1)
+       ORDER BY da.decided_at DESC
+       LIMIT 100`,
+      [req.user.id, req.user.departmentId])
+    res.json(result.rows)
+  } catch (err) { next(err) }
+})
+
+// POST /api/approvals/bulk-approve — approve multiple steps
+router.post('/bulk-approve', authenticate, async (req, res, next) => {
+  try {
+    const { approval_ids, comment } = req.body
+    if (!Array.isArray(approval_ids) || approval_ids.length === 0)
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'approval_ids must be a non-empty array.' } })
+    if (approval_ids.length > 50)
+      return res.status(400).json({ error: { code: 'BULK_LIMIT', message: 'Cannot approve more than 50 items at once.' } })
+
+    let approved = 0; let skipped = 0
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      for (const apId of approval_ids) {
+        const apResult = await client.query(
+          'SELECT da.*, d.status AS doc_status FROM document_approvals da JOIN documents d ON d.id = da.document_id WHERE da.id = $1', [apId])
+        if (!apResult.rows.length) { skipped++; continue }
+        const ap = apResult.rows[0]
+        if (ap.status !== 'pending' || ap.doc_status === 'completed') { skipped++; continue }
+        const isDeptMatch = ap.assigned_department_id ? req.user.departmentId === ap.assigned_department_id : true
+        const isUserMatch = ap.assigned_to ? req.user.id === ap.assigned_to : true
+        const isAdmin = req.user.role === 'admin'
+        if (!isAdmin && (!isDeptMatch || !isUserMatch)) { skipped++; continue }
+        await client.query(
+          "UPDATE document_approvals SET status = 'approved', comment = $1, decided_by = $2, decided_at = NOW() WHERE id = $3",
+          [comment || null, req.user.id, apId])
+        approved++
+        const remaining = await client.query(
+          "SELECT id FROM document_approvals WHERE document_id = $1 AND status = 'pending' LIMIT 1", [ap.document_id])
+        if (!remaining.rows.length) {
+          await client.query("UPDATE documents SET status = 'approved', updated_at = NOW() WHERE id = $1", [ap.document_id])
+        }
+      }
+      await client.query('COMMIT')
+    } catch (err) { await client.query('ROLLBACK'); throw err } finally { client.release() }
+    res.json({ approved, skipped })
+  } catch (err) { next(err) }
+})
+
+// POST /api/approvals/bulk-reject — reject multiple steps
+router.post('/bulk-reject', authenticate, async (req, res, next) => {
+  try {
+    const { approval_ids, comment } = req.body
+    if (!Array.isArray(approval_ids) || approval_ids.length === 0)
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'approval_ids must be a non-empty array.' } })
+    if (!comment || typeof comment !== 'string' || !comment.trim())
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'comment is required when rejecting.' } })
+    if (approval_ids.length > 50)
+      return res.status(400).json({ error: { code: 'BULK_LIMIT', message: 'Cannot reject more than 50 items at once.' } })
+
+    let rejected = 0; let skipped = 0
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      for (const apId of approval_ids) {
+        const apResult = await client.query(
+          'SELECT da.*, d.status AS doc_status FROM document_approvals da JOIN documents d ON d.id = da.document_id WHERE da.id = $1', [apId])
+        if (!apResult.rows.length) { skipped++; continue }
+        const ap = apResult.rows[0]
+        if (ap.status !== 'pending' || ap.doc_status === 'completed') { skipped++; continue }
+        const isDeptMatch = ap.assigned_department_id ? req.user.departmentId === ap.assigned_department_id : true
+        const isUserMatch = ap.assigned_to ? req.user.id === ap.assigned_to : true
+        const isAdmin = req.user.role === 'admin'
+        if (!isAdmin && (!isDeptMatch || !isUserMatch)) { skipped++; continue }
+        await client.query(
+          "UPDATE document_approvals SET status = 'rejected', comment = $1, decided_by = $2, decided_at = NOW() WHERE id = $3",
+          [comment.trim(), req.user.id, apId])
+        rejected++
+      }
+      await client.query('COMMIT')
+    } catch (err) { await client.query('ROLLBACK'); throw err } finally { client.release() }
+    res.json({ rejected, skipped })
   } catch (err) { next(err) }
 })
 
