@@ -109,11 +109,11 @@ router.get('/', authenticate, async (req, res, next) => {
                 d.updated_at,
                 r.created_at AS forwarded_at,
                 u.full_name AS forwarded_by_name,
-                r.note AS routing_note
+                r.routing_note
          FROM documents d
          JOIN departments cd ON cd.id = d.current_department_id
          JOIN routings r ON r.document_id = d.id AND r.to_department_id = $1
-         LEFT JOIN users u ON u.id = r.from_user_id
+         LEFT JOIN users u ON u.id = r.routed_by
          WHERE d.status = 'forwarded'
          ORDER BY r.created_at DESC
          LIMIT 10`,
