@@ -15,6 +15,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [unreadCount, setUnreadCount] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const closedRef = useRef(false)
 
   const refreshUnreadCount = useCallback(() => {
     if (!token) return
@@ -33,6 +34,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       return
     }
 
+    closedRef.current = false
+
     // Initial fetch
     refreshUnreadCount()
 
@@ -41,6 +44,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     eventSourceRef.current = es
 
     es.onmessage = (e) => {
+      if (closedRef.current) return
       try {
         const event = JSON.parse(e.data)
         if (event.type === 'notification') {
@@ -50,9 +54,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     es.onerror = () => {
-      // SSE disconnected — fall back to polling
+      if (closedRef.current) return
       es.close()
       eventSourceRef.current = null
+      // Fall back to polling
       if (!intervalRef.current) {
         intervalRef.current = setInterval(refreshUnreadCount, POLL_INTERVAL)
       }
@@ -62,6 +67,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     intervalRef.current = setInterval(refreshUnreadCount, POLL_INTERVAL)
 
     return () => {
+      closedRef.current = true
       if (intervalRef.current) clearInterval(intervalRef.current)
       intervalRef.current = null
       if (eventSourceRef.current) { eventSourceRef.current.close(); eventSourceRef.current = null }

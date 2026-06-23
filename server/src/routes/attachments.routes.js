@@ -213,6 +213,27 @@ router.patch('/:documentId/attachments/reorder', authenticate, async (req, res, 
       return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'ordered_ids must be a non-empty array.' } })
     }
 
+    // Scope check
+    const scope = buildScopeClause(req.user, 2)
+    const docResult = await pool.query(
+      `SELECT d.id FROM documents d WHERE d.id = $1 AND ${scope.clause}`,
+      [documentId, ...scope.params]
+    )
+    if (!docResult.rows.length) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
+    }
+
+    // Only the uploader or admin can reorder
+    const attResult = await pool.query(
+      'SELECT uploaded_by FROM attachments WHERE document_id = $1',
+      [documentId]
+    )
+    const isAdmin = req.user.role === 'admin'
+    const isUploader = attResult.rows.every(a => String(a.uploaded_by) === String(req.user.id))
+    if (!isAdmin && !isUploader) {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Only the uploader or an admin can reorder attachments.' } })
+    }
+
     const client = await pool.connect()
     try {
       await client.query('BEGIN')

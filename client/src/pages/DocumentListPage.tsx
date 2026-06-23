@@ -43,6 +43,7 @@ export default function DocumentListPage() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [total, setTotal] = useState(0)
   const [_page, setPage] = useState(1)
+  const pageRef = useRef(1)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -135,7 +136,7 @@ export default function DocumentListPage() {
     }).catch(() => console.warn('[Documents] Failed to load categories/departments'))
   }, [token])
 
-  const fetchDocuments = useCallback(async (f: Filters, p: number, append = false) => {
+  const fetchDocuments = useCallback(async (f: Filters, p: number, append = false, signal?: AbortSignal) => {
     if (append) setLoadingMore(true)
     else setLoading(true)
     setError('')
@@ -149,7 +150,7 @@ export default function DocumentListPage() {
       if (f.deadline_from) params.set('deadline_from', f.deadline_from)
       if (f.deadline_to) params.set('deadline_to', f.deadline_to)
       if (f.include_archived === '1') params.set('include_archived', '1')
-      const res = await fetch(`/api/documents?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch(`/api/documents?${params}`, { headers: { Authorization: `Bearer ${token}` }, signal })
       if (!res.ok) throw new Error()
       const data = await res.json()
       const newDocs = data.data ?? []
@@ -160,29 +161,33 @@ export default function DocumentListPage() {
       }
       setTotal(data.total ?? 0)
       setHasMore(newDocs.length === PAGE_SIZE)
-    } catch { setError('Failed to load documents. Please try again.') }
+    } catch (e) { if (e instanceof DOMException && e.name === 'AbortError') return; setError('Failed to load documents. Please try again.') }
     finally { setLoading(false); setLoadingMore(false) }
   }, [token])
 
-  useEffect(() => { fetchDocuments(appliedFilters, 1) }, [appliedFilters, fetchDocuments])
+  useEffect(() => {
+    const ac = new AbortController()
+    fetchDocuments(appliedFilters, 1, false, ac.signal)
+    return () => ac.abort()
+  }, [appliedFilters, fetchDocuments])
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || loading || loadingMore) return
+    let cancelled = false
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
-          setPage(prev => {
-            const next = prev + 1
-            fetchDocuments(appliedFilters, next, true)
-            return next
-          })
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore && !cancelled) {
+          const nextPage = pageRef.current + 1
+          pageRef.current = nextPage
+          setPage(nextPage)
+          fetchDocuments(appliedFilters, nextPage, true)
         }
       },
       { rootMargin: '200px' }
     )
     observer.observe(sentinelRef.current)
-    return () => observer.disconnect()
+    return () => { cancelled = true; observer.disconnect() }
   }, [hasMore, loading, loadingMore, appliedFilters, fetchDocuments])
 
   // Clear selection when filters change
@@ -224,7 +229,7 @@ export default function DocumentListPage() {
       const { completed, skipped } = data
       showToast(`${completed} marked complete.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
       setSelectedIds([])
-      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk action failed', 'error')
     } finally {
@@ -245,7 +250,7 @@ export default function DocumentListPage() {
       if (!res.ok) throw new Error(data?.error?.message ?? 'Bulk delete failed')
       showToast(`${data.deleted} document${data.deleted !== 1 ? 's' : ''} deleted.`, 'success')
       setSelectedIds([])
-      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk delete failed', 'error')
     } finally {
@@ -267,7 +272,7 @@ export default function DocumentListPage() {
       const { updated } = data
       showToast(`${updated} document${updated !== 1 ? 's' : ''} updated.`, 'success')
       setSelectedIds([])
-      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk action failed', 'error')
     } finally {
@@ -297,7 +302,7 @@ export default function DocumentListPage() {
       const { forwarded, skipped } = data
       showToast(`${forwarded} document${forwarded !== 1 ? 's' : ''} forwarded.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
       setSelectedIds([]); setBulkForwardDept(''); setBulkForwardNote(''); setBulkMode(null)
-      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk forward failed', 'error')
     } finally {
@@ -318,7 +323,7 @@ export default function DocumentListPage() {
       const { returned, skipped } = data
       showToast(`${returned} document${returned !== 1 ? 's' : ''} returned.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
       setSelectedIds([]); setBulkReturnReason(''); setBulkMode(null)
-      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk return failed', 'error')
     } finally {
@@ -361,7 +366,7 @@ export default function DocumentListPage() {
 
         {/* Unified search + filter bar */}
         <form
-          onSubmit={(e) => { e.preventDefault(); setPage(1); setDocuments([]); setHasMore(true); setAppliedFilters(f => ({ ...f, ...filters, search: searchQuery })) }}
+          onSubmit={(e) => { e.preventDefault(); pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); setAppliedFilters(f => ({ ...f, ...filters, search: searchQuery })) }}
           className="bg-white rounded-2xl shadow-card border border-stone-200 p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700"
         >
           {/* Search row with auto-suggest */}
@@ -482,7 +487,7 @@ export default function DocumentListPage() {
               <button type="submit" className="min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm">
                 Apply Filters
               </button>
-              <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); setDocuments([]); setHasMore(true); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
+              <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
                 className="min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300 transition-all dark:border-stone-600 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600">
                 Clear
               </button>
@@ -773,7 +778,10 @@ export default function DocumentListPage() {
             )}
             {!loadingMore && hasMore && (
               <button onClick={() => {
-                setPage(prev => { const next = prev + 1; fetchDocuments(appliedFilters, next, true); return next })
+                const nextPage = pageRef.current + 1
+                pageRef.current = nextPage
+                setPage(nextPage)
+                fetchDocuments(appliedFilters, nextPage, true)
               }}
                 className="min-h-[36px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
                 Load More

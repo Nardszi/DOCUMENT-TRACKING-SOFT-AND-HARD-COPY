@@ -185,21 +185,28 @@ export default function DocumentDetailPage() {
   const handleDragLeave = useCallback(() => setOverIdx(null), [])
   const handleDragEnd = useCallback(() => { setDragIdx(null); setOverIdx(null) }, [])
 
-  const handleDrop = useCallback(async (dropIdx: number) => {
+  const handleDrop = useCallback((dropIdx: number) => {
     if (dragIdx === null || !doc) return
     setDragIdx(null); setOverIdx(null)
-    const atts = [...doc.attachments]
-    const [moved] = atts.splice(dragIdx, 1)
-    atts.splice(dropIdx, 0, moved)
-    setDoc(prev => prev ? { ...prev, attachments: atts } : prev)
-    try {
-      const t = token ?? localStorage.getItem('noneco_token') ?? ''
-      await fetch(`/api/documents/${doc.id}/attachments/reorder`, {
+    const docId = doc.id
+    const tokenVal = token
+    setDoc(prev => {
+      if (!prev) return prev
+      const atts = [...prev.attachments]
+      const [moved] = atts.splice(dragIdx, 1)
+      atts.splice(dropIdx, 0, moved)
+      const orderedIds = atts.map(a => a.id)
+      const t = tokenVal ?? localStorage.getItem('noneco_token') ?? ''
+      fetch(`/api/documents/${docId}/attachments/reorder`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-        body: JSON.stringify({ ordered_ids: atts.map(a => a.id) }),
+        body: JSON.stringify({ ordered_ids: orderedIds }),
+      }).then(r => { if (!r.ok) throw new Error() }).catch(() => {
+        fetch(`/api/documents/${docId}`, { headers: { Authorization: `Bearer ${t}` } })
+          .then(r => r.json()).then(data => setDoc(data)).catch(() => {})
       })
-    } catch { refetchDoc() }
+      return { ...prev, attachments: atts }
+    })
   }, [dragIdx, doc, token])
 
   async function handleMarkComplete() {

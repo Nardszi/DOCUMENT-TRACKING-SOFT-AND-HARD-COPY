@@ -268,7 +268,7 @@ router.post('/bulk-delete', authenticate, async (req, res, next) => {
 
 // POST /bulk-set-priority
 router.post('/bulk-set-priority', authenticate, async (req, res, next) => {
-  const { role } = req.user
+  const { role, departmentId } = req.user
   if (role !== 'department_head' && role !== 'admin')
     return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
   const { document_ids, priority } = req.body
@@ -280,9 +280,20 @@ router.post('/bulk-set-priority', authenticate, async (req, res, next) => {
   if (!VALID_PRIORITIES.includes(normPri))
     return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'priority must be one of: ' + VALID_PRIORITIES.join(', ') + '.' } })
   try {
-    const placeholders = document_ids.map((_, i) => '$' + (i + 2)).join(', ')
-    const result = await pool.query('UPDATE documents SET priority = $1, updated_at = NOW() WHERE id IN (' + placeholders + ')', [normPri, ...document_ids])
-    res.json({ updated: result.rowCount })
+    let updated = 0
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      for (const docId of document_ids) {
+        const check = await client.query('SELECT id, current_department_id FROM documents WHERE id = $1', [docId])
+        if (!check.rows.length) continue
+        if (role !== 'admin' && String(check.rows[0].current_department_id) !== String(departmentId)) continue
+        await pool.query('UPDATE documents SET priority = $1, updated_at = NOW() WHERE id = $2', [normPri, docId])
+        updated++
+      }
+      await client.query('COMMIT')
+    } catch (err) { await client.query('ROLLBACK').catch(() => {}) } finally { client.release() }
+    res.json({ updated })
   } catch (err) { next(err) }
 })
 
@@ -341,7 +352,9 @@ router.post('/bulk-return', authenticate, async (req, res, next) => {
     await client.query('BEGIN')
     for (const docId of document_ids) {
       const check = await client.query(
-        'SELECT d.id, d.status, d.current_department_id, r.from_department_id FROM documents d LEFT JOIN routings r ON r.document_id = d.id AND r.to_department_id = d.current_department_id WHERE d.id = $1',
+        "SELECT d.id, d.status, d.current_department_id, " +
+        "(SELECT r.from_department_id FROM routings r WHERE r.document_id = d.id AND r.to_department_id = d.current_department_id ORDER BY r.created_at DESC LIMIT 1) AS from_department_id " +
+        "FROM documents d WHERE d.id = $1",
         [docId])
       if (!check.rows.length || check.rows[0].status === 'completed' || check.rows[0].status !== 'forwarded') { skipped++; continue }
       if (role !== 'admin' && String(check.rows[0].current_department_id) !== String(departmentId)) { skipped++; continue }
