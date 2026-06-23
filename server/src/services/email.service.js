@@ -224,10 +224,10 @@ export async function sendPasswordResetEmail(userEmail, { fullName, resetUrl }) 
 }
 
 // ── Legacy helper (kept for backward compat) ──────────────────────────────────
-export async function sendNotificationEmail(userEmail, subject, { documentTitle, trackingNumber, status, eventType }) {
+export async function sendNotificationEmail(userEmail, subject, { documentTitle, trackingNumber, status, eventType, documentId }) {
   const transporter = createTransporter()
   if (!transporter) return
-  const url = `${APP_URL}/documents/${trackingNumber}`
+  const url = `${APP_URL}/documents/${documentId || trackingNumber}`
   const body = `
     <p style="font-size:14px;color:#374151;margin:0 0 16px;">You have a new notification regarding a document.</p>
     ${docTable([

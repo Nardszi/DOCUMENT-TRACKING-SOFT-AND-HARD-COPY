@@ -158,6 +158,7 @@ router.get('/', authenticate, async (req, res, next) => {
     if (req.query.deadline_to)   { params.push(req.query.deadline_to);   whereClauses.push('d.deadline <= $' + params.length) }
     if (req.query.priority)      { params.push(req.query.priority);      whereClauses.push('d.priority = $' + params.length) }
     if (req.query.category_id)   { params.push(req.query.category_id);   whereClauses.push('d.category_id = $' + params.length) }
+    if (req.query.created_by)    { params.push(req.query.created_by);    whereClauses.push('d.created_by = $' + params.length) }
     if (req.query.include_archived !== '1') { whereClauses.push("d.is_archived = FALSE") }
     const whereSQL = whereClauses.length ? ' WHERE ' + whereClauses.join(' AND ') : ''
     const countResult = await pool.query('SELECT COUNT(*) AS total' + DOC_JOINS_FULL + whereSQL, params)
@@ -179,7 +180,7 @@ router.get('/:id/qr-cover', authenticate, async (req, res, next) => {
       ' FROM documents d JOIN departments od ON od.id = d.originating_department_id WHERE d.id = $1', [id])
     if (!result.rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
     const doc = result.rows[0]
-    const qrDataUrl = await generateQRCode(doc.tracking_number)
+    const qrDataUrl = await generateQRCode(doc.id)
     const createdAt = new Date(doc.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cover Sheet - ' + doc.tracking_number + '</title>' +
       '<style>body{font-family:Arial,sans-serif;max-width:600px;margin:40px auto;padding:20px}' +
@@ -214,8 +215,10 @@ router.post('/bulk-complete', authenticate, async (req, res, next) => {
   try {
     await client.query('BEGIN')
     for (const docId of document_ids) {
-      const result = await client.query('SELECT id, status FROM documents WHERE id = $1', [docId])
+      const result = await client.query('SELECT id, status, current_department_id FROM documents WHERE id = $1', [docId])
       if (!result.rows.length || result.rows[0].status === 'completed') { skipped++; continue }
+      // Scope check: non-admin users can only complete docs in their department
+      if (role !== 'admin' && String(result.rows[0].current_department_id) !== String(req.user.departmentId)) { skipped++; continue }
       await client.query("UPDATE documents SET status = 'completed', updated_at = NOW() WHERE id = $1", [docId])
       await client.query("INSERT INTO tracking_log (document_id, user_id, department_id, event_type) VALUES ($1, $2, $3, 'completed')", [docId, req.user.id, req.user.departmentId])
       completed++

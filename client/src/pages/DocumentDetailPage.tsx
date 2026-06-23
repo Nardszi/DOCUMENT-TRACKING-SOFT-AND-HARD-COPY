@@ -536,6 +536,29 @@ export default function DocumentDetailPage() {
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                             Download
                           </button>
+                          {String(att.uploaded_by.id) === String(user?.id) && (
+                            <button onClick={async () => {
+                              if (!window.confirm(`Delete "${att.original_name}"?`)) return
+                              try {
+                                const t = token ?? localStorage.getItem('noneco_token') ?? ''
+                                const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
+                                  method: 'DELETE',
+                                  headers: { Authorization: `Bearer ${t}` },
+                                })
+                                if (!res.ok) {
+                                  const err = await res.json().catch(() => ({}))
+                                  alert(err?.error?.message || 'Failed to delete attachment.')
+                                  return
+                                }
+                                setDoc(prev => prev ? { ...prev, attachments: prev.attachments.filter(a => a.id !== att.id) } : prev)
+                              } catch {
+                                alert('Unable to connect. Please try again.')
+                              }
+                            }}
+                              className="min-h-[36px] px-3.5 py-2 rounded-xl border border-red-200 bg-white text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors dark:bg-stone-800 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30">
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </li>
                     ))}

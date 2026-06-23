@@ -51,6 +51,7 @@ export async function createNotificationsForDept(pool_or_ignored, departmentId, 
                 trackingNumber: doc.tracking_number,
                 status: doc.status,
                 eventType,
+                documentId,
               })
             } catch (err) {
               console.warn(`[email] Failed to send to ${user.email}:`, err.message)

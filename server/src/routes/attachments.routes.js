@@ -137,7 +137,7 @@ router.post('/:documentId/attachments', authenticate, (req, res, next) => {
       original_name: attachment.original_name,
       mime_type: attachment.mime_type,
       file_size_bytes: attachment.file_size_bytes,
-      uploaded_by: req.user.id,
+      uploaded_by: { id: req.user.id, full_name: req.user.fullName },
       uploaded_at: attachment.uploaded_at,
     })
   } catch (err) {
@@ -196,6 +196,38 @@ router.get('/:documentId/attachments/:attachId', authenticate, async (req, res, 
     })
 
     stream.pipe(res)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// DELETE /:documentId/attachments/:attachId — delete attachment (uploader or admin only)
+// ---------------------------------------------------------------------------
+router.delete('/:documentId/attachments/:attachId', authenticate, async (req, res, next) => {
+  try {
+    const { documentId, attachId } = req.params
+
+    const attResult = await pool.query(
+      'SELECT id, storage_path, uploaded_by FROM attachments WHERE id = $1 AND document_id = $2',
+      [attachId, documentId]
+    )
+
+    if (!attResult.rows.length) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Attachment not found.' } })
+    }
+
+    const att = attResult.rows[0]
+
+    if (String(att.uploaded_by) !== String(req.user.id) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Only the uploader or an admin can delete this attachment.' } })
+    }
+
+    const adapter = getStorageAdapter()
+    await adapter.delete(att.storage_path).catch(() => {})
+    await pool.query('DELETE FROM attachments WHERE id = $1', [attachId])
+
+    res.json({ message: 'Attachment deleted.' })
   } catch (err) {
     next(err)
   }

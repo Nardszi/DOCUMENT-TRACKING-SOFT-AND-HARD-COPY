@@ -22,6 +22,7 @@ interface FormData {
   description: string
   deadline: string
   priority: string
+  version: number
 }
 
 interface DocumentDetail {
@@ -34,6 +35,7 @@ interface DocumentDetail {
   status: string
   priority: string
   deadline: string | null
+  version: number
 }
 
 export default function DocumentEditPage() {
@@ -49,6 +51,7 @@ export default function DocumentEditPage() {
     description: '',
     deadline: '',
     priority: 'normal',
+    version: 0,
   })
   const [errors, setErrors] = useState<Partial<FormData>>({})
   const [categories, setCategories] = useState<Category[]>([])
@@ -90,6 +93,7 @@ export default function DocumentEditPage() {
           description: doc.description ?? '',
           deadline: doc.deadline ? doc.deadline.split('T')[0] : '',
           priority: doc.priority ?? 'normal',
+          version: doc.version ?? 0,
         }
         setForm(initial)
         initialForm.current = JSON.stringify(initial)
@@ -143,6 +147,7 @@ export default function DocumentEditPage() {
         priority: form.priority,
         description: form.description.trim() || null,
         deadline: form.deadline || null,
+        version: form.version,
       }
 
       const res = await fetch(`/api/documents/${id}`, {

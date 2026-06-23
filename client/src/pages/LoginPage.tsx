@@ -50,7 +50,7 @@ export default function LoginPage() {
       if (res.status === 401) {
         const data = await res.json().catch(() => ({}))
         setFormError(
-          data.code === 'ACCOUNT_DEACTIVATED'
+          data.error?.code === 'ACCOUNT_DEACTIVATED'
             ? 'Your account has been deactivated. Contact your administrator.'
             : 'Invalid username or password.',
         )
