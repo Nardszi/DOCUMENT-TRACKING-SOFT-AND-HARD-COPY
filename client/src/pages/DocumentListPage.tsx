@@ -27,7 +27,7 @@ const PAGE_SIZE = 25
 const PRIORITY_OPTIONS = ['low', 'normal', 'high', 'urgent'] as const
 type Priority = typeof PRIORITY_OPTIONS[number]
 
-type BulkConfirmAction = 'complete' | 'priority' | 'delete' | null
+type BulkConfirmAction = 'complete' | 'priority' | 'delete' | 'forward' | 'return' | null
 
 function formatUpdated(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -42,9 +42,10 @@ export default function DocumentListPage() {
   const navigate = useNavigate()
   const [documents, setDocuments] = useState<Document[]>([])
   const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
-  const [page, setPage] = useState(1)
+  const [_page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [error, setError] = useState('')
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [appliedFilters, setAppliedFilters] = useState<Filters>(EMPTY_FILTERS)
@@ -56,7 +57,14 @@ export default function DocumentListPage() {
   const [bulkPriority, setBulkPriority] = useState<Priority>('normal')
   const [confirmAction, setConfirmAction] = useState<BulkConfirmAction>(null)
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkMode, setBulkMode] = useState<'forward' | 'return' | null>(null)
+  const [bulkForwardDept, setBulkForwardDept] = useState('')
+  const [bulkForwardNote, setBulkForwardNote] = useState('')
+  const [bulkReturnReason, setBulkReturnReason] = useState('')
   const headerCheckboxRef = useRef<HTMLInputElement>(null)
+
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
   // Hero search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -127,8 +135,10 @@ export default function DocumentListPage() {
     }).catch(() => console.warn('[Documents] Failed to load categories/departments'))
   }, [token])
 
-  const fetchDocuments = useCallback(async (f: Filters, p: number) => {
-    setLoading(true); setError('')
+  const fetchDocuments = useCallback(async (f: Filters, p: number, append = false) => {
+    if (append) setLoadingMore(true)
+    else setLoading(true)
+    setError('')
     try {
       const params = new URLSearchParams({ page: String(p), limit: String(PAGE_SIZE) })
       if (f.search) params.set('search', f.search)
@@ -142,15 +152,41 @@ export default function DocumentListPage() {
       const res = await fetch(`/api/documents?${params}`, { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setDocuments(data.data ?? []); setTotal(data.total ?? 0); setTotalPages(data.totalPages ?? 1)
+      const newDocs = data.data ?? []
+      if (append) {
+        setDocuments(prev => [...prev, ...newDocs])
+      } else {
+        setDocuments(newDocs)
+      }
+      setTotal(data.total ?? 0)
+      setHasMore(newDocs.length === PAGE_SIZE)
     } catch { setError('Failed to load documents. Please try again.') }
-    finally { setLoading(false) }
+    finally { setLoading(false); setLoadingMore(false) }
   }, [token])
 
-  useEffect(() => { fetchDocuments(appliedFilters, page) }, [appliedFilters, page, fetchDocuments])
+  useEffect(() => { fetchDocuments(appliedFilters, 1) }, [appliedFilters, fetchDocuments])
 
-  // Clear selection when page/filters change
-  useEffect(() => { setSelectedIds([]) }, [appliedFilters, page])
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || loading || loadingMore) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          setPage(prev => {
+            const next = prev + 1
+            fetchDocuments(appliedFilters, next, true)
+            return next
+          })
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [hasMore, loading, loadingMore, appliedFilters, fetchDocuments])
+
+  // Clear selection when filters change
+  useEffect(() => { setSelectedIds([]) }, [appliedFilters])
 
   // Update header checkbox indeterminate state
   useEffect(() => {
@@ -188,7 +224,7 @@ export default function DocumentListPage() {
       const { completed, skipped } = data
       showToast(`${completed} marked complete.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
       setSelectedIds([])
-      fetchDocuments(appliedFilters, page)
+      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk action failed', 'error')
     } finally {
@@ -209,7 +245,7 @@ export default function DocumentListPage() {
       if (!res.ok) throw new Error(data?.error?.message ?? 'Bulk delete failed')
       showToast(`${data.deleted} document${data.deleted !== 1 ? 's' : ''} deleted.`, 'success')
       setSelectedIds([])
-      fetchDocuments(appliedFilters, page)
+      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk delete failed', 'error')
     } finally {
@@ -231,7 +267,7 @@ export default function DocumentListPage() {
       const { updated } = data
       showToast(`${updated} document${updated !== 1 ? 's' : ''} updated.`, 'success')
       setSelectedIds([])
-      fetchDocuments(appliedFilters, page)
+      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk action failed', 'error')
     } finally {
@@ -244,12 +280,60 @@ export default function DocumentListPage() {
     if (confirmAction === 'complete') executeBulkComplete()
     else if (confirmAction === 'priority') executeBulkSetPriority()
     else if (confirmAction === 'delete') executeBulkDelete()
+    else if (confirmAction === 'forward') executeBulkForward()
+    else if (confirmAction === 'return') executeBulkReturn()
+  }
+
+  async function executeBulkForward() {
+    setBulkLoading(true)
+    try {
+      const res = await fetch('/api/documents/bulk-forward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ document_ids: selectedIds, to_department_id: bulkForwardDept, routing_note: bulkForwardNote }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error?.message ?? 'Bulk forward failed')
+      const { forwarded, skipped } = data
+      showToast(`${forwarded} document${forwarded !== 1 ? 's' : ''} forwarded.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
+      setSelectedIds([]); setBulkForwardDept(''); setBulkForwardNote(''); setBulkMode(null)
+      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Bulk forward failed', 'error')
+    } finally {
+      setBulkLoading(false); setConfirmAction(null)
+    }
+  }
+
+  async function executeBulkReturn() {
+    setBulkLoading(true)
+    try {
+      const res = await fetch('/api/documents/bulk-return', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ document_ids: selectedIds, reason: bulkReturnReason }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error?.message ?? 'Bulk return failed')
+      const { returned, skipped } = data
+      showToast(`${returned} document${returned !== 1 ? 's' : ''} returned.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
+      setSelectedIds([]); setBulkReturnReason(''); setBulkMode(null)
+      setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Bulk return failed', 'error')
+    } finally {
+      setBulkLoading(false); setConfirmAction(null)
+    }
   }
 
   const confirmMessage = confirmAction === 'complete'
     ? `Mark ${selectedIds.length} document${selectedIds.length !== 1 ? 's' : ''} as complete?`
     : confirmAction === 'delete'
     ? `Permanently delete ${selectedIds.length} document${selectedIds.length !== 1 ? 's' : ''}? This cannot be undone.`
+    : confirmAction === 'forward'
+    ? `Forward ${selectedIds.length} document${selectedIds.length !== 1 ? 's' : ''} to the selected department?`
+    : confirmAction === 'return'
+    ? `Return ${selectedIds.length} document${selectedIds.length !== 1 ? 's' : ''} to their previous department?`
     : `Set priority to "${bulkPriority}" for ${selectedIds.length} document${selectedIds.length !== 1 ? 's' : ''}?`
 
   return (
@@ -277,7 +361,7 @@ export default function DocumentListPage() {
 
         {/* Unified search + filter bar */}
         <form
-          onSubmit={(e) => { e.preventDefault(); setPage(1); setAppliedFilters(f => ({ ...f, ...filters, search: searchQuery })) }}
+          onSubmit={(e) => { e.preventDefault(); setPage(1); setDocuments([]); setHasMore(true); setAppliedFilters(f => ({ ...f, ...filters, search: searchQuery })) }}
           className="bg-white rounded-2xl shadow-card border border-stone-200 p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700"
         >
           {/* Search row with auto-suggest */}
@@ -398,7 +482,7 @@ export default function DocumentListPage() {
               <button type="submit" className="min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm">
                 Apply Filters
               </button>
-              <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
+              <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); setDocuments([]); setHasMore(true); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
                 className="min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300 transition-all dark:border-stone-600 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600">
                 Clear
               </button>
@@ -450,6 +534,26 @@ export default function DocumentListPage() {
                 Delete Selected
               </button>
             )}
+            {user?.role === 'department_head' && (
+              <>
+                <button
+                  type="button"
+                  disabled={bulkLoading}
+                  onClick={() => setBulkMode(bulkMode === 'forward' ? null : 'forward')}
+                  className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-violet-600 text-xs sm:text-sm font-semibold text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50 transition-all shadow-sm"
+                >
+                  Forward
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkLoading}
+                  onClick={() => setBulkMode(bulkMode === 'return' ? null : 'return')}
+                  className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-amber-500 text-xs sm:text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 transition-all shadow-sm"
+                >
+                  Return
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setSelectedIds([])}
@@ -457,6 +561,55 @@ export default function DocumentListPage() {
             >
               Clear
             </button>
+          </div>
+        )}
+
+        {/* Bulk forward inline form */}
+        {bulkMode === 'forward' && selectedIds.length > 0 && (
+          <div className="mb-3 rounded-2xl bg-violet-50 border border-violet-200 px-4 py-3 dark:bg-violet-900/20 dark:border-violet-800/40 space-y-2">
+            <p className="text-sm font-semibold text-stone-800 dark:text-stone-200">Forward {selectedIds.length} document{selectedIds.length !== 1 ? 's' : ''}</p>
+            <select value={bulkForwardDept} onChange={e => setBulkForwardDept(e.target.value)}
+              className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm bg-white dark:bg-stone-700 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 dark:border-stone-600">
+              <option value="">Select destination…</option>
+              {departments.filter(d => String(d.id) !== String(user?.departmentId)).map(d => (
+                <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
+              ))}
+            </select>
+            <input type="text" value={bulkForwardNote} onChange={e => setBulkForwardNote(e.target.value)}
+              placeholder="Routing note (required)…"
+              className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm bg-white dark:bg-stone-700 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-400 dark:border-stone-600" />
+            <div className="flex gap-2">
+              <button onClick={() => { if (!bulkForwardDept || !bulkForwardNote.trim()) { showToast('Select a destination and enter a routing note.', 'error'); return } setConfirmAction('forward') }}
+                disabled={bulkLoading || !bulkForwardDept || !bulkForwardNote.trim()}
+                className="min-h-[36px] px-4 py-1.5 rounded-xl bg-violet-600 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50 transition-all">
+                Forward
+              </button>
+              <button onClick={() => { setBulkMode(null); setBulkForwardDept(''); setBulkForwardNote('') }}
+                className="min-h-[36px] px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-xs font-medium text-stone-600 hover:bg-stone-50 dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 transition-all">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk return inline form */}
+        {bulkMode === 'return' && selectedIds.length > 0 && (
+          <div className="mb-3 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 dark:bg-amber-900/20 dark:border-amber-800/40 space-y-2">
+            <p className="text-sm font-semibold text-stone-800 dark:text-stone-200">Return {selectedIds.length} document{selectedIds.length !== 1 ? 's' : ''}</p>
+            <input type="text" value={bulkReturnReason} onChange={e => setBulkReturnReason(e.target.value)}
+              placeholder="Reason for return (required)…"
+              className="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm bg-white dark:bg-stone-700 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:border-stone-600" />
+            <div className="flex gap-2">
+              <button onClick={() => { if (!bulkReturnReason.trim()) { showToast('Enter a reason for return.', 'error'); return } setConfirmAction('return') }}
+                disabled={bulkLoading || !bulkReturnReason.trim()}
+                className="min-h-[36px] px-4 py-1.5 rounded-xl bg-amber-500 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50 transition-all">
+                Return
+              </button>
+              <button onClick={() => { setBulkMode(null); setBulkReturnReason('') }}
+                className="min-h-[36px] px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-xs font-medium text-stone-600 hover:bg-stone-50 dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 transition-all">
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
@@ -608,35 +761,29 @@ export default function DocumentListPage() {
           )}
         </div>
 
-        {/* Pagination */}
-        {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4 flex-wrap gap-2 px-1">
-            <p className="text-xs text-stone-500 dark:text-stone-400">Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of <span className="font-semibold text-stone-700 dark:text-stone-200">{total}</span></p>
-            <div className="flex items-center gap-1.5">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="min-h-[36px] px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
-                ← Prev
+        {/* Infinite scroll sentinel + load more */}
+        {!loading && documents.length > 0 && (
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <div ref={sentinelRef} className="h-1" />
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-sm text-stone-400 dark:text-stone-500">
+                <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                Loading more…
+              </div>
+            )}
+            {!loadingMore && hasMore && (
+              <button onClick={() => {
+                setPage(prev => { const next = prev + 1; fetchDocuments(appliedFilters, next, true); return next })
+              }}
+                className="min-h-[36px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
+                Load More
               </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const start = Math.min(Math.max(page - 2, 0), Math.max(totalPages - 5, 0))
-                const p = start + i + 1
-                if (p < 1 || p > totalPages) return null
-                return (
-                  <button key={p} onClick={() => setPage(p)}
-                    className={`min-h-[36px] min-w-[36px] rounded-xl text-xs font-semibold transition-all ${
-                      p === page
-                        ? 'bg-amber-500 text-white shadow-sm'
-                        : 'border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700'
-                    }`}>
-                    {p}
-                  </button>
-                )
-              })}
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="min-h-[36px] px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">
-                Next →
-              </button>
-            </div>
+            )}
+            {!hasMore && documents.length > 0 && (
+              <p className="text-xs text-stone-400 dark:text-stone-500">
+                Showing all {total} document{total !== 1 ? 's' : ''}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -644,9 +791,9 @@ export default function DocumentListPage() {
       {/* Confirm dialog for bulk actions */}
       {confirmAction && (
         <ConfirmDialog
-          title={confirmAction === 'complete' ? 'Mark as Complete' : confirmAction === 'delete' ? 'Delete Documents' : 'Set Priority'}
+          title={confirmAction === 'complete' ? 'Mark as Complete' : confirmAction === 'delete' ? 'Delete Documents' : confirmAction === 'forward' ? 'Forward Documents' : confirmAction === 'return' ? 'Return Documents' : 'Set Priority'}
           message={confirmMessage}
-          confirmLabel={confirmAction === 'complete' ? 'Mark Complete' : confirmAction === 'delete' ? 'Delete' : 'Set Priority'}
+          confirmLabel={confirmAction === 'complete' ? 'Mark Complete' : confirmAction === 'delete' ? 'Delete' : confirmAction === 'forward' ? 'Forward' : confirmAction === 'return' ? 'Return' : 'Set Priority'}
           danger={confirmAction === 'delete'}
           onConfirm={handleConfirm}
           onCancel={() => setConfirmAction(null)}

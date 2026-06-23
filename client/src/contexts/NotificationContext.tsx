@@ -14,6 +14,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const { token, isAuthenticated } = useAuth()
   const [unreadCount, setUnreadCount] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   const refreshUnreadCount = useCallback(() => {
     if (!token) return
@@ -24,19 +25,48 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [token])
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !token) {
       if (intervalRef.current) clearInterval(intervalRef.current)
       intervalRef.current = null
+      if (eventSourceRef.current) { eventSourceRef.current.close(); eventSourceRef.current = null }
       setUnreadCount(0)
       return
     }
+
+    // Initial fetch
     refreshUnreadCount()
+
+    // SSE connection for real-time updates
+    const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`)
+    eventSourceRef.current = es
+
+    es.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data)
+        if (event.type === 'notification') {
+          setUnreadCount(prev => prev + 1)
+        }
+      } catch {}
+    }
+
+    es.onerror = () => {
+      // SSE disconnected — fall back to polling
+      es.close()
+      eventSourceRef.current = null
+      if (!intervalRef.current) {
+        intervalRef.current = setInterval(refreshUnreadCount, POLL_INTERVAL)
+      }
+    }
+
+    // Also keep polling as fallback (SSE might not always be available)
     intervalRef.current = setInterval(refreshUnreadCount, POLL_INTERVAL)
+
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
       intervalRef.current = null
+      if (eventSourceRef.current) { eventSourceRef.current.close(); eventSourceRef.current = null }
     }
-  }, [isAuthenticated, refreshUnreadCount])
+  }, [isAuthenticated, token, refreshUnreadCount])
 
   return (
     <NotificationContext.Provider value={{ unreadCount, refreshUnreadCount }}>

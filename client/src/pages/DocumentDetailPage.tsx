@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
@@ -165,6 +165,8 @@ export default function DocumentDetailPage() {
   const [showAssignFlow, setShowAssignFlow] = useState(false)
   const [selectedFlowId, setSelectedFlowId] = useState('')
   const [assignLoading, setAssignLoading] = useState(false)
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [overIdx, setOverIdx] = useState<number | null>(null)
 
   function refetchDoc() {
     if (!id) return
@@ -173,21 +175,45 @@ export default function DocumentDetailPage() {
       .then(data => setDoc(data)).catch(() => console.warn('Failed to refetch doc'))
   }
 
-  function handleRoutingSuccess(_updatedDoc: { id: number; status: string; current_department: { id: number; code: string; name: string } }) {
+  function handleRoutingSuccess(updatedDoc: { id: number; status: string; current_department: { id: number; code: string; name: string } }) {
+    setDoc(prev => prev ? { ...prev, status: updatedDoc.status, current_department: updatedDoc.current_department } : prev)
     refetchDoc()
   }
 
+  const handleDragStart = useCallback((idx: number) => setDragIdx(idx), [])
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number) => { e.preventDefault(); setOverIdx(idx) }, [])
+  const handleDragLeave = useCallback(() => setOverIdx(null), [])
+  const handleDragEnd = useCallback(() => { setDragIdx(null); setOverIdx(null) }, [])
+
+  const handleDrop = useCallback(async (dropIdx: number) => {
+    if (dragIdx === null || !doc) return
+    setDragIdx(null); setOverIdx(null)
+    const atts = [...doc.attachments]
+    const [moved] = atts.splice(dragIdx, 1)
+    atts.splice(dropIdx, 0, moved)
+    setDoc(prev => prev ? { ...prev, attachments: atts } : prev)
+    try {
+      const t = token ?? localStorage.getItem('noneco_token') ?? ''
+      await fetch(`/api/documents/${doc.id}/attachments/reorder`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ ordered_ids: atts.map(a => a.id) }),
+      })
+    } catch { refetchDoc() }
+  }, [dragIdx, doc, token])
+
   async function handleMarkComplete() {
     setCompleting(true)
+    setDoc(prev => prev ? { ...prev, status: 'completed' } : prev)
     try {
       const res = await fetch(`/api/documents/${id}/complete`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body?.error?.message || 'Failed to mark complete.')
       }
-      setDoc(prev => prev ? { ...prev, status: 'completed' } : prev)
       refetchDoc()
     } catch (err) {
+      refetchDoc()
       alert(err instanceof Error ? err.message : 'Failed to mark complete.')
     } finally { setCompleting(false); setShowCompleteConfirm(false) }
   }
@@ -221,8 +247,11 @@ export default function DocumentDetailPage() {
       }
       setShowRecallConfirm(false)
       setRecallReason('')
+      const updated = await res.json()
+      setDoc(prev => prev ? { ...prev, status: updated.status, current_department: updated.current_department } : prev)
       refetchDoc()
     } catch (err) {
+      refetchDoc()
       alert(err instanceof Error ? err.message : 'Failed to recall document.')
     } finally {
       setRecalling(false)
@@ -255,6 +284,7 @@ export default function DocumentDetailPage() {
 
   async function handleArchive() {
     setArchiving(true)
+    setDoc(prev => prev ? { ...prev, is_archived: true } : prev)
     try {
       const res = await fetch(`/api/documents/${id}/archive`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) {
@@ -263,12 +293,14 @@ export default function DocumentDetailPage() {
       }
       refetchDoc()
     } catch (err) {
+      refetchDoc()
       alert(err instanceof Error ? err.message : 'Failed to archive.')
     } finally { setArchiving(false); setShowArchiveConfirm(false) }
   }
 
   async function handleRestore() {
     setArchiving(true)
+    setDoc(prev => prev ? { ...prev, is_archived: false } : prev)
     try {
       const res = await fetch(`/api/documents/${id}/restore`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) {
@@ -277,6 +309,7 @@ export default function DocumentDetailPage() {
       }
       refetchDoc()
     } catch (err) {
+      refetchDoc()
       alert(err instanceof Error ? err.message : 'Failed to restore.')
     } finally { setArchiving(false) }
   }
@@ -510,11 +543,23 @@ export default function DocumentDetailPage() {
               <div className="p-5">
                 {doc.attachments.length > 0 && (
                   <ul className="divide-y divide-stone-100 dark:divide-stone-700/60 mb-4">
-                    {doc.attachments.map(att => (
-                      <li key={att.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">{att.original_name}</p>
-                          <p className="text-xs text-stone-500 dark:text-stone-400">{formatBytes(att.file_size_bytes)} · {att.uploaded_by.full_name} · {formatDateTime(att.uploaded_at)}</p>
+                    {doc.attachments.map((att, idx) => (
+                      <li key={att.id}
+                        draggable
+                        onDragStart={() => handleDragStart(idx)}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDragLeave={handleDragLeave}
+                        onDragEnd={handleDragEnd}
+                        onDrop={() => handleDrop(idx)}
+                        className={`py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 transition-colors cursor-grab active:cursor-grabbing ${dragIdx === idx ? 'opacity-40' : ''} ${overIdx === idx && dragIdx !== null && dragIdx !== idx ? 'border-t-2 border-violet-400' : ''}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <svg className="w-4 h-4 text-stone-300 dark:text-stone-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                          </svg>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">{att.original_name}</p>
+                            <p className="text-xs text-stone-500 dark:text-stone-400">{formatBytes(att.file_size_bytes)} · {att.uploaded_by.full_name} · {formatDateTime(att.uploaded_at)}</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {(att.mime_type.startsWith('image/') || att.mime_type === 'application/pdf') && (

@@ -286,6 +286,81 @@ router.post('/bulk-set-priority', authenticate, async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// POST /bulk-forward — forward multiple documents (department_head or admin)
+router.post('/bulk-forward', authenticate, async (req, res, next) => {
+  const { role, id: userId, departmentId } = req.user
+  if (role !== 'department_head' && role !== 'admin')
+    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
+  const { document_ids, to_department_id, routing_note } = req.body
+  if (!Array.isArray(document_ids) || document_ids.length === 0)
+    return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
+  if (document_ids.length > 100)
+    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 100 items.' } })
+  if (!to_department_id)
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'to_department_id is required.' } })
+  if (!routing_note || !routing_note.trim())
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'routing_note is required.' } })
+  const client = await pool.connect()
+  let forwarded = 0, skipped = 0
+  try {
+    await client.query('BEGIN')
+    for (const docId of document_ids) {
+      const check = await client.query('SELECT id, status, current_department_id FROM documents WHERE id = $1', [docId])
+      if (!check.rows.length || check.rows[0].status === 'completed') { skipped++; continue }
+      if (role !== 'admin' && String(check.rows[0].current_department_id) !== String(departmentId)) { skipped++; continue }
+      await client.query("UPDATE documents SET status = 'forwarded', updated_at = NOW() WHERE id = $1", [docId])
+      await client.query(
+        "INSERT INTO routings (document_id, routed_by, to_department_id, routing_note) VALUES ($1, $2, $3, $4)",
+        [docId, userId, to_department_id, routing_note.trim()])
+      await client.query(
+        "INSERT INTO tracking_log (document_id, user_id, department_id, event_type, remarks) VALUES ($1, $2, $3, 'forwarded', $4)",
+        [docId, userId, departmentId, routing_note.trim()])
+      forwarded++
+    }
+    await client.query('COMMIT')
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); client.release(); return next(err) }
+  client.release()
+  res.json({ forwarded, skipped })
+})
+
+// POST /bulk-return — return multiple documents (department_head or admin)
+router.post('/bulk-return', authenticate, async (req, res, next) => {
+  const { role, id: userId, departmentId } = req.user
+  if (role !== 'department_head' && role !== 'admin')
+    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
+  const { document_ids, reason } = req.body
+  if (!Array.isArray(document_ids) || document_ids.length === 0)
+    return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
+  if (document_ids.length > 100)
+    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 100 items.' } })
+  if (!reason || !reason.trim())
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'reason is required.' } })
+  const client = await pool.connect()
+  let returned = 0, skipped = 0
+  try {
+    await client.query('BEGIN')
+    for (const docId of document_ids) {
+      const check = await client.query(
+        'SELECT d.id, d.status, d.current_department_id, r.from_department_id FROM documents d LEFT JOIN routings r ON r.document_id = d.id AND r.to_department_id = d.current_department_id WHERE d.id = $1',
+        [docId])
+      if (!check.rows.length || check.rows[0].status === 'completed' || check.rows[0].status !== 'forwarded') { skipped++; continue }
+      if (role !== 'admin' && String(check.rows[0].current_department_id) !== String(departmentId)) { skipped++; continue }
+      const returnDeptId = check.rows[0].from_department_id || departmentId
+      await client.query("UPDATE documents SET status = 'returned', current_department_id = $1, updated_at = NOW() WHERE id = $2", [returnDeptId, docId])
+      await client.query(
+        "INSERT INTO routings (document_id, routed_by, to_department_id, routing_note) VALUES ($1, $2, $3, $4)",
+        [docId, userId, returnDeptId, reason.trim()])
+      await client.query(
+        "INSERT INTO tracking_log (document_id, user_id, department_id, event_type, remarks) VALUES ($1, $2, $3, 'returned', $4)",
+        [docId, userId, departmentId, reason.trim()])
+      returned++
+    }
+    await client.query('COMMIT')
+  } catch (err) { await client.query('ROLLBACK').catch(() => {}); client.release(); return next(err) }
+  client.release()
+  res.json({ returned, skipped })
+})
+
 // GET /quick-search
 router.get('/quick-search', authenticate, async (req, res, next) => {
   const q = req.query.q
@@ -313,8 +388,8 @@ router.get('/:id', authenticate, async (req, res, next) => {
     if (!docResult.rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
     const doc = formatDoc(docResult.rows[0])
     const attResult = await pool.query(
-      'SELECT a.id, a.original_name, a.filename, a.mime_type, a.file_size_bytes, a.uploaded_by, u.full_name AS uploader_full_name, a.uploaded_at' +
-      ' FROM attachments a JOIN users u ON u.id = a.uploaded_by WHERE a.document_id = $1 ORDER BY a.uploaded_at ASC', [id])
+      'SELECT a.id, a.original_name, a.filename, a.mime_type, a.file_size_bytes, a.uploaded_by, u.full_name AS uploader_full_name, a.uploaded_at, a.upload_order' +
+      ' FROM attachments a JOIN users u ON u.id = a.uploaded_by WHERE a.document_id = $1 ORDER BY a.upload_order ASC, a.uploaded_at ASC', [id])
     const logResult = await pool.query(
       'SELECT tl.id, tl.event_type, tl.remarks, tl.metadata, tl.created_at, tl.user_id, u.full_name AS user_full_name, tl.department_id, dept.code AS dept_code, dept.name AS dept_name' +
       ' FROM tracking_log tl JOIN users u ON u.id = tl.user_id JOIN departments dept ON dept.id = tl.department_id WHERE tl.document_id = $1 ORDER BY tl.created_at ASC', [id])

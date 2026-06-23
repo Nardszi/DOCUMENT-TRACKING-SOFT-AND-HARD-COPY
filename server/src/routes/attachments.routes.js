@@ -202,6 +202,41 @@ router.get('/:documentId/attachments/:attachId', authenticate, async (req, res, 
 })
 
 // ---------------------------------------------------------------------------
+// PATCH /:documentId/attachments/reorder — reorder attachments (uploader or admin only)
+// ---------------------------------------------------------------------------
+router.patch('/:documentId/attachments/reorder', authenticate, async (req, res, next) => {
+  try {
+    const { documentId } = req.params
+    const { ordered_ids } = req.body
+
+    if (!Array.isArray(ordered_ids) || ordered_ids.length === 0) {
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'ordered_ids must be a non-empty array.' } })
+    }
+
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      for (let i = 0; i < ordered_ids.length; i++) {
+        await client.query(
+          'UPDATE attachments SET upload_order = $1 WHERE id = $2 AND document_id = $3',
+          [i, ordered_ids[i], documentId]
+        )
+      }
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+
+    res.json({ message: 'Attachments reordered.' })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ---------------------------------------------------------------------------
 // DELETE /:documentId/attachments/:attachId — delete attachment (uploader or admin only)
 // ---------------------------------------------------------------------------
 router.delete('/:documentId/attachments/:attachId', authenticate, async (req, res, next) => {
