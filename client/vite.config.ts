@@ -17,6 +17,11 @@ export default defineConfig({
             handler: 'NetworkOnly',
           },
           {
+            // Exclude attachment preview/download — binary blobs need fresh responses
+            urlPattern: /^\/api\/documents\/.*\/attachments\//i,
+            handler: 'NetworkOnly',
+          },
+          {
             urlPattern: /^\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
