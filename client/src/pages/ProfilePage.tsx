@@ -9,6 +9,7 @@ interface FormErrors { current_password?: string; new_password?: string; confirm
 const INITIAL_FORM: FormState = { current_password: '', new_password: '', confirm_password: '' }
 
 interface ActivityItem { id: string; title: string; tracking_number: string; status: string; priority: string; created_at: string }
+interface ProfileData { created_at: string }
 
 function getInitials(name: string) { return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') }
 function formatRole(role: string) { return role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }
@@ -63,6 +64,11 @@ export default function ProfilePage() {
 
   const { data: departments = [] } = useApiQuery<{ id: string; name: string }[]>('/api/departments', { retry: false })
   const deptName = departments.find(d => String(d.id) === String(user?.departmentId))?.name || '—'
+
+  const { data: profileData } = useApiQuery<{ user: ProfileData }>('/api/profile', { retry: false })
+  const memberSince = profileData?.user?.created_at
+    ? new Date(profileData.user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : '—'
 
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -132,14 +138,14 @@ export default function ProfilePage() {
           <div className="lg:col-span-4">
             <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 overflow-hidden lg:sticky lg:top-24">
               {/* Banner */}
-              <div className="h-20 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-600 dark:to-amber-700" />
-              <div className="px-5 pb-5 -mt-10">
+              <div className="h-16 bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-600 dark:to-amber-700" />
+              <div className="px-5 pb-5 -mt-8">
                 {/* Avatar */}
-                <div className="w-20 h-20 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-stone-900">
-                  <span className="text-2xl font-bold text-white select-none">{initials}</span>
+                <div className="w-16 h-16 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-stone-900">
+                  <span className="text-xl font-bold text-white select-none">{initials}</span>
                 </div>
-                <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100 mt-3 leading-tight">{user?.fullName || '—'}</h2>
-                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold mt-2 ${roleColor}`}>
+                <h2 className="text-base font-bold text-stone-900 dark:text-stone-100 mt-2 leading-tight">{user?.fullName || '—'}</h2>
+                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold mt-1.5 ${roleColor}`}>
                   {formatRole(user?.role ?? 'staff')}
                 </span>
 
@@ -147,7 +153,7 @@ export default function ProfilePage() {
                 <div className="mt-5 pt-4 border-t border-stone-100 dark:border-stone-800 space-y-3">
                   {[
                     { icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>, label: 'Department', value: deptName },
-                    { icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>, label: 'Member Since', value: user?.id ? new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—' },
+                    { icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>, label: 'Member Since', value: memberSince },
                   ].map(row => (
                     <div key={row.label} className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-stone-100 dark:bg-stone-800 flex items-center justify-center shrink-0 text-stone-400 dark:text-stone-500">{row.icon}</div>

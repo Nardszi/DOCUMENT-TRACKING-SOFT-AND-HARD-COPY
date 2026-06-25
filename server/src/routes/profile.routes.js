@@ -4,6 +4,18 @@ import { authenticate } from '../middleware/auth.js'
 
 const router = Router()
 
+router.get('/', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, username, email, full_name, role, department_id, is_active, created_at
+       FROM users WHERE id = $1`,
+      [req.user.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'User not found.' } })
+    res.json({ user: rows[0] })
+  } catch (err) { next(err) }
+})
+
 router.patch('/', authenticate, async (req, res, next) => {
   const { full_name } = req.body
   if (!full_name || typeof full_name !== 'string' || !full_name.trim()) {
