@@ -317,10 +317,10 @@ router.post('/bulk-forward', authenticate, async (req, res, next) => {
       const check = await client.query('SELECT id, status, current_department_id FROM documents WHERE id = $1', [docId])
       if (!check.rows.length || check.rows[0].status === 'completed') { skipped++; continue }
       if (role !== 'admin' && String(check.rows[0].current_department_id) !== String(departmentId)) { skipped++; continue }
-      await client.query("UPDATE documents SET status = 'forwarded', updated_at = NOW() WHERE id = $1", [docId])
+      await client.query("UPDATE documents SET status = 'forwarded', current_department_id = $1, updated_at = NOW() WHERE id = $2", [to_department_id, docId])
       await client.query(
-        "INSERT INTO routings (document_id, routed_by, to_department_id, routing_note) VALUES ($1, $2, $3, $4)",
-        [docId, userId, to_department_id, routing_note.trim()])
+        "INSERT INTO routings (document_id, routed_by, from_department_id, to_department_id, routing_note) VALUES ($1, $2, $3, $4, $5)",
+        [docId, userId, check.rows[0].current_department_id, to_department_id, routing_note.trim()])
       await client.query(
         "INSERT INTO tracking_log (document_id, user_id, department_id, event_type, remarks) VALUES ($1, $2, $3, 'forwarded', $4)",
         [docId, userId, departmentId, routing_note.trim()])
@@ -357,8 +357,8 @@ router.post('/bulk-return', authenticate, async (req, res, next) => {
       const returnDeptId = check.rows[0].from_department_id || departmentId
       await client.query("UPDATE documents SET status = 'returned', current_department_id = $1, updated_at = NOW() WHERE id = $2", [returnDeptId, docId])
       await client.query(
-        "INSERT INTO routings (document_id, routed_by, to_department_id, routing_note) VALUES ($1, $2, $3, $4)",
-        [docId, userId, returnDeptId, reason.trim()])
+        "INSERT INTO routings (document_id, routed_by, from_department_id, to_department_id, routing_note) VALUES ($1, $2, $3, $4, $5)",
+        [docId, userId, check.rows[0].current_department_id, returnDeptId, reason.trim()])
       await client.query(
         "INSERT INTO tracking_log (document_id, user_id, department_id, event_type, remarks) VALUES ($1, $2, $3, 'returned', $4)",
         [docId, userId, departmentId, reason.trim()])
