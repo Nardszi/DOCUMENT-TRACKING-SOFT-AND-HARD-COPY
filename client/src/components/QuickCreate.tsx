@@ -6,12 +6,14 @@ interface Category { id: number; name: string }
 interface Department { id: number; code: string; name: string }
 
 export default function QuickCreate() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [deptId, setDeptId] = useState('')
+  const [description, setDescription] = useState('')
+  const [deadline, setDeadline] = useState('')
   const [priority, setPriority] = useState('normal')
   const [categories, setCategories] = useState<Category[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
@@ -29,8 +31,9 @@ export default function QuickCreate() {
     ]).then(([cats, depts]) => {
       setCategories(Array.isArray(cats) ? cats : [])
       setDepartments(Array.isArray(depts) ? depts : [])
+      if (user?.departmentId && !deptId) setDeptId(String(user.departmentId))
     }).catch(() => {})
-  }, [open, token])
+  }, [open, token, user?.departmentId])
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100)
@@ -49,13 +52,22 @@ export default function QuickCreate() {
     if (!title.trim() || !categoryId || !deptId) { setError('Fill all required fields.'); return }
     setError(''); setSubmitting(true)
     try {
+      const body: Record<string, unknown> = {
+        title: title.trim(),
+        category_id: Number(categoryId),
+        originating_department_id: Number(deptId),
+        priority,
+      }
+      if (description.trim()) body.description = description.trim()
+      if (deadline) body.deadline = deadline
       const res = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: title.trim(), category_id: Number(categoryId), originating_department_id: Number(deptId), priority }),
+        body: JSON.stringify(body),
       })
       if (res.ok) {
         const data = await res.json()
+        setTitle(''); setCategoryId(''); setDescription(''); setDeadline(''); setPriority('normal')
         navigate(`/documents/${data.id}`)
         return
       }
@@ -84,7 +96,7 @@ export default function QuickCreate() {
           <form onSubmit={handleSubmit} className="p-4 space-y-3">
             {error && <p className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{error}</p>}
             <input ref={inputRef} type="text" value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="Document title…" className="w-full rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              placeholder="Document title *" className="w-full rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400" />
             <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
               className="w-full rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400">
               <option value="">Category *</option>
@@ -93,8 +105,12 @@ export default function QuickCreate() {
             <select value={deptId} onChange={e => setDeptId(e.target.value)}
               className="w-full rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400">
               <option value="">Department *</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.code}</option>)}
+              {departments.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
             </select>
+            <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="Description (optional)…" className="w-full rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+            <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
+              className="w-full rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-amber-400" />
             <div className="flex gap-1.5">
               {['low', 'normal', 'high', 'urgent'].map(p => (
                 <button key={p} type="button" onClick={() => setPriority(p)}
