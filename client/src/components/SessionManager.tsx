@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAuth, getTokenExp } from '../contexts/AuthContext'
 import { useToast } from './ToastContainer'
 
@@ -12,49 +12,46 @@ export default function SessionManager() {
   const { showToast } = useToast()
   const warnedRef = useRef(false)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastActivityRef = useRef(Date.now())
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const inactivityWarningRef = useRef(false)
   const inactivityWarnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const clearInactivityTimer = useCallback(() => {
-    if (inactivityTimerRef.current) { clearTimeout(inactivityTimerRef.current); inactivityTimerRef.current = null }
-    if (inactivityWarnTimerRef.current) { clearTimeout(inactivityWarnTimerRef.current); inactivityWarnTimerRef.current = null }
-  }, [])
-
-  const startInactivityTimer = useCallback(() => {
-    clearInactivityTimer()
-    inactivityWarningRef.current = false
-
-    // Warning at 28 minutes
-    inactivityWarnTimerRef.current = setTimeout(() => {
-      if (!inactivityWarningRef.current) {
-        inactivityWarningRef.current = true
-        showToast('You will be logged out in 2 minutes due to inactivity.', 'warning')
-      }
-    }, INACTIVITY_WARNING_MS)
-
-    // Logout at 30 minutes
-    inactivityTimerRef.current = setTimeout(() => {
-      showToast('Logged out due to inactivity.', 'info')
-      logout()
-    }, INACTIVITY_TIMEOUT_MS)
-  }, [clearInactivityTimer, showToast, logout])
-
-  // Inactivity tracker
+  // Inactivity tracker — uses refs, no re-render dependency
   useEffect(() => {
     if (!token) return
 
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart']
-    const resetTimer = () => startInactivityTimer()
+    lastActivityRef.current = Date.now()
 
-    events.forEach(e => document.addEventListener(e, resetTimer, { passive: true }))
-    resetTimer()
+    function scheduleTimers() {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+      if (inactivityWarnTimerRef.current) clearTimeout(inactivityWarnTimerRef.current)
+
+      inactivityWarnTimerRef.current = setTimeout(() => {
+        showToast('You will be logged out in 2 minutes due to inactivity.', 'warning')
+      }, INACTIVITY_WARNING_MS)
+
+      inactivityTimerRef.current = setTimeout(() => {
+        showToast('Logged out due to inactivity.', 'info')
+        logout()
+      }, INACTIVITY_TIMEOUT_MS)
+    }
+
+    function onActivity() {
+      lastActivityRef.current = Date.now()
+      scheduleTimers()
+    }
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart']
+    events.forEach(e => document.addEventListener(e, onActivity, { passive: true }))
+    scheduleTimers()
 
     return () => {
-      events.forEach(e => document.removeEventListener(e, resetTimer))
-      clearInactivityTimer()
+      events.forEach(e => document.removeEventListener(e, onActivity))
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
+      if (inactivityWarnTimerRef.current) clearTimeout(inactivityWarnTimerRef.current)
     }
-  }, [token, startInactivityTimer, clearInactivityTimer])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   // Token expiry handling
   useEffect(() => {
@@ -93,7 +90,8 @@ export default function SessionManager() {
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
       }
     }
-  }, [token, refreshToken, showToast])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   return null
 }
