@@ -102,8 +102,11 @@ export default function AttachmentUpload({ documentId, token, disabled, multiple
           const formData = new FormData()
           formData.append('file', file)
           const xhr = new XMLHttpRequest()
-          xhr.upload.addEventListener('progress', () => {
-            setProgress(Math.round(((i + 0.5) / selectedFiles.length) * 100))
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 100)
+              setProgress(Math.round(((i + pct / 100) / selectedFiles.length) * 100))
+            }
           })
           xhr.addEventListener('load', () => {
             if (xhr.status === 200 || xhr.status === 201) {

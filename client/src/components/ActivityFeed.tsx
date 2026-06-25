@@ -49,6 +49,29 @@ export default function ActivityFeed() {
   useEffect(() => {
     if (!token) return
     closedRef.current = false
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+
+    function connectSSE() {
+      if (closedRef.current || !token) return
+      const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`)
+      eventSourceRef.current = es
+      es.onmessage = (e) => {
+        if (closedRef.current) return
+        try {
+          const event = JSON.parse(e.data)
+          if (event.type === 'activity' && event.activity) {
+            setEvents(prev => [event.activity, ...prev].slice(0, 20))
+          }
+        } catch {}
+      }
+      es.onerror = () => {
+        es.close()
+        eventSourceRef.current = null
+        if (!closedRef.current) {
+          reconnectTimer = setTimeout(connectSSE, 5000)
+        }
+      }
+    }
 
     fetch('/api/dashboard/activity-feed', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
@@ -56,21 +79,11 @@ export default function ActivityFeed() {
       .catch(() => {})
       .finally(() => setLoading(false))
 
-    const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`)
-    eventSourceRef.current = es
-    es.onmessage = (e) => {
-      if (closedRef.current) return
-      try {
-        const event = JSON.parse(e.data)
-        if (event.type === 'activity' && event.activity) {
-          setEvents(prev => [event.activity, ...prev].slice(0, 20))
-        }
-      } catch {}
-    }
-    es.onerror = () => { es.close(); eventSourceRef.current = null }
+    connectSSE()
 
     return () => {
       closedRef.current = true
+      if (reconnectTimer) clearTimeout(reconnectTimer)
       if (eventSourceRef.current) { eventSourceRef.current.close(); eventSourceRef.current = null }
     }
   }, [token])

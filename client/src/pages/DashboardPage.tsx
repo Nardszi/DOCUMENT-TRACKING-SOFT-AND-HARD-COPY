@@ -289,6 +289,8 @@ function DeptDocSection({ tab, user, navigate }: {
   tab: DeptTab; user: any; navigate: ReturnType<typeof useNavigate>
 }) {
   if (!user) return null
+  if (tab === 'department' && !user.departmentId) return null
+  if (tab === 'my' && !user.id) return null
   const params = new URLSearchParams({ limit: '6', page: '1' })
   if (tab === 'department') params.set('department_id', String(user.departmentId))
   else params.set('created_by', String(user.id))

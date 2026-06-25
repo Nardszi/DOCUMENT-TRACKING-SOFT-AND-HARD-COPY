@@ -49,8 +49,8 @@ function App() {
           <ToastProvider>
            <OfflineIndicator />
            <SessionManager />
+           <ErrorBoundary>
            <GlobalDropZone />
-          <ErrorBoundary>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />

@@ -52,7 +52,7 @@ export default function QuickCreate() {
       const res = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: title.trim(), category_id: categoryId, originating_department_id: deptId, priority }),
+        body: JSON.stringify({ title: title.trim(), category_id: Number(categoryId), originating_department_id: Number(deptId), priority }),
       })
       if (res.ok) {
         const data = await res.json()

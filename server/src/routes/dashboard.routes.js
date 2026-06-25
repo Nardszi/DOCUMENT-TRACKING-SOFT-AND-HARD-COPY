@@ -114,7 +114,7 @@ router.get('/', authenticate, async (req, res, next) => {
          JOIN departments cd ON cd.id = d.current_department_id
          JOIN routings r ON r.document_id = d.id AND r.to_department_id = $1
          LEFT JOIN users u ON u.id = r.routed_by
-         WHERE d.status = 'forwarded'
+         WHERE d.status = 'forwarded' AND d.current_department_id = $1
          ORDER BY r.created_at DESC
          LIMIT 10`,
         [req.user.departmentId]
@@ -140,6 +140,7 @@ router.get('/', authenticate, async (req, res, next) => {
 router.get('/activity-feed', authenticate, async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+    const scope = buildScopeClause(req.user, 2)
     const { rows } = await pool.query(
       `SELECT tl.id, tl.event_type, tl.created_at,
               u.full_name AS user_name,
@@ -158,9 +159,10 @@ router.get('/activity-feed', authenticate, async (req, res, next) => {
        JOIN users u ON u.id = tl.user_id
        JOIN documents d ON d.id = tl.document_id
        LEFT JOIN departments dep ON dep.id = tl.department_id
+       WHERE ${scope.clause}
        ORDER BY tl.created_at DESC
        LIMIT $1`,
-      [limit]
+      [limit, ...scope.params]
     )
     res.json(rows.map(r => ({
       id: String(r.id),

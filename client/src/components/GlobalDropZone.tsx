@@ -5,6 +5,7 @@ export default function GlobalDropZone() {
   const navigate = useNavigate()
   const [dragging, setDragging] = useState(false)
   const counterRef = useRef(0)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault()
@@ -17,11 +18,14 @@ export default function GlobalDropZone() {
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault()
     counterRef.current--
-    if (counterRef.current === 0) setDragging(false)
+    if (counterRef.current === 0) {
+      timerRef.current = setTimeout(() => setDragging(false), 100)
+    }
   }, [])
 
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault()
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
   }, [])
 
@@ -29,16 +33,7 @@ export default function GlobalDropZone() {
     e.preventDefault()
     counterRef.current = 0
     setDragging(false)
-    const files = e.dataTransfer?.files
-    if (!files || files.length === 0) return
-    const fileNames = Array.from(files).map(f => f.name).join(',')
-    const fileData = Array.from(files).map(f => ({ name: f.name, size: f.size, type: f.type }))
-    sessionStorage.setItem('noneco_dropped_files', JSON.stringify(fileData))
-    for (const file of files) {
-      const dt = new DataTransfer()
-      dt.items.add(file)
-    }
-    navigate('/documents/new', { state: { droppedFiles: fileNames } })
+    navigate('/documents/new')
   }, [navigate])
 
   useEffect(() => {
@@ -51,6 +46,7 @@ export default function GlobalDropZone() {
       document.removeEventListener('dragleave', handleDragLeave)
       document.removeEventListener('dragover', handleDragOver)
       document.removeEventListener('drop', handleDrop)
+      if (timerRef.current) clearTimeout(timerRef.current)
     }
   }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop])
 
