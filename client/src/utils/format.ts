@@ -13,7 +13,7 @@ export function formatBytes(bytes: number): string {
 }
 
 export function getInitials(name: string): string {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+  return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
 const ROLE_MAP: Record<string, string> = {

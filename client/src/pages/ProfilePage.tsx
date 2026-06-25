@@ -86,7 +86,7 @@ export default function ProfilePage() {
     setActivityLoading(true)
     const params = new URLSearchParams({ created_by: String(user.id), limit: '10', page: '1' })
     fetch(`/api/documents?${params}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(data => setActivity(Array.isArray(data.data) ? data.data : []))
+      .then(r => r.ok ? r.json() : { data: [] }).then(data => setActivity(Array.isArray(data.data) ? data.data : []))
       .catch(() => {}).finally(() => setActivityLoading(false))
   }, [token, user, activeTab])
 
@@ -205,10 +205,10 @@ export default function ProfilePage() {
                       e.preventDefault(); if (!nameValue.trim()) return; setSavingName(true)
                       try {
                         const res = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ full_name: nameValue.trim() }) })
-                        if (!res.ok) throw new Error()
+                        if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.error?.message || 'Failed to update.') }
                         const data = await res.json(); if (data.token) login(data.token)
                         showToast('Name updated', 'success'); setEditingName(false)
-                      } catch { showToast('Failed to update.', 'error') } finally { setSavingName(false) }
+                      } catch (err) { showToast(err instanceof Error ? err.message : 'Failed to update.', 'error') } finally { setSavingName(false) }
                     }} className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 space-y-3">
                       <input type="text" value={nameValue} onChange={e => setNameValue(e.target.value)}
                         className="w-full rounded-xl border border-stone-200 dark:border-stone-600 px-4 py-2.5 text-sm bg-white dark:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:text-stone-100" autoFocus />

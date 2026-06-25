@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
@@ -100,6 +100,9 @@ export default function NotificationsPage() {
   const [markingAll, setMarkingAll] = useState<'idle' | 'loading' | 'done'>('idle')
   const [filter, setFilter] = useState<FilterTab>('all')
   const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set())
+  const timerRef = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  useEffect(() => { return () => timerRef.current.forEach(clearTimeout) }, [])
 
   const fetchNotifications = useCallback(() => {
     setLoading(true)
@@ -134,7 +137,7 @@ export default function NotificationsPage() {
     await fetch(`/api/notifications/${id}/read`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }).catch(() => console.warn('[Notifications] Failed to mark as read'))
     setNotifications(prev => prev.map(x => x.id === id ? { ...x, is_read: true } : x))
     refreshUnreadCount()
-    setTimeout(() => setAnimatingIds(prev => { const s = new Set(prev); s.delete(id); return s }), 300)
+    timerRef.current.push(setTimeout(() => setAnimatingIds(prev => { const s = new Set(prev); s.delete(id); return s }), 300))
   }
 
   async function handleMarkAll() {
@@ -143,7 +146,7 @@ export default function NotificationsPage() {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
     refreshUnreadCount()
     setMarkingAll('done')
-    setTimeout(() => setMarkingAll('idle'), 1500)
+    timerRef.current.push(setTimeout(() => setMarkingAll('idle'), 1500))
   }
 
   const empty = notifications.length === 0

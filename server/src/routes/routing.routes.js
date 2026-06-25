@@ -40,6 +40,14 @@ router.post('/:documentId/forward', authenticate, async (req, res, next) => {
     }
 
     const doc = docResult.rows[0]
+
+    // Scope check: only users in the current department, the creator, or admin can forward
+    if (req.user.role !== 'admin' &&
+        String(doc.current_department_id) !== String(req.user.departmentId) &&
+        String(doc.created_by) !== String(req.user.id)) {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You cannot forward this document.' } })
+    }
+
     // Fetch destination department code for metadata
     const toDeptResult = await pool.query('SELECT code FROM departments WHERE id = $1', [to_department_id])
     const toDeptCode = toDeptResult.rows.length ? toDeptResult.rows[0].code : null
@@ -180,6 +188,13 @@ router.post('/:documentId/return', authenticate, async (req, res, next) => {
     }
 
     const doc = docResult.rows[0]
+
+    // Scope check: only users in the current department, the creator, or admin can return
+    if (req.user.role !== 'admin' &&
+        String(doc.current_department_id) !== String(req.user.departmentId) &&
+        String(doc.created_by) !== String(req.user.id)) {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You cannot return this document.' } })
+    }
     
     // Block if not forwarded (only forwarded documents can be returned)
     if (doc.status !== 'forwarded') {

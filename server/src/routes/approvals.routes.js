@@ -2,6 +2,7 @@ import { Router } from 'express'
 import pool from '../db/pool.js'
 import { authenticate } from '../middleware/auth.js'
 import { requireAdmin, requireHeadOrAdmin } from '../middleware/rbac.js'
+import { recordAudit } from '../utils/audit.js'
 
 const router = Router()
 
@@ -199,8 +200,8 @@ router.post('/:approvalId/approve', authenticate, async (req, res, next) => {
     if (ap.doc_status === 'completed') return res.status(403).json({ error: { code: 'DOCUMENT_COMPLETED', message: 'Document is completed.' } })
 
     // Check user is authorized to approve this step
-    const isDeptMatch = ap.assigned_department_id ? req.user.departmentId === ap.assigned_department_id : true
-    const isUserMatch = ap.assigned_to ? req.user.id === ap.assigned_to : true
+    const isDeptMatch = ap.assigned_department_id ? String(req.user.departmentId) === String(ap.assigned_department_id) : true
+    const isUserMatch = ap.assigned_to ? String(req.user.id) === String(ap.assigned_to) : true
     const isAdmin = req.user.role === 'admin'
     if (!isAdmin && (!isDeptMatch || !isUserMatch))
       return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You are not authorized to approve this step.' } })
@@ -219,6 +220,7 @@ router.post('/:approvalId/approve', authenticate, async (req, res, next) => {
         [ap.document_id])
     }
 
+    recordAudit(pool, req.user.id, 'approval.approved', 'document_approval', approvalId, { document_id: ap.document_id, step_order: ap.step_order })
     res.json({ message: 'Step approved.' })
   } catch (err) { next(err) }
 })
@@ -239,8 +241,8 @@ router.post('/:approvalId/reject', authenticate, async (req, res, next) => {
     if (ap.status !== 'pending') return res.status(409).json({ error: { code: 'CONFLICT', message: 'Approval already ' + ap.status + '.' } })
     if (ap.doc_status === 'completed') return res.status(403).json({ error: { code: 'DOCUMENT_COMPLETED', message: 'Document is completed.' } })
 
-    const isDeptMatch = ap.assigned_department_id ? req.user.departmentId === ap.assigned_department_id : true
-    const isUserMatch = ap.assigned_to ? req.user.id === ap.assigned_to : true
+    const isDeptMatch = ap.assigned_department_id ? String(req.user.departmentId) === String(ap.assigned_department_id) : true
+    const isUserMatch = ap.assigned_to ? String(req.user.id) === String(ap.assigned_to) : true
     const isAdmin = req.user.role === 'admin'
     if (!isAdmin && (!isDeptMatch || !isUserMatch))
       return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You are not authorized to reject this step.' } })
@@ -249,6 +251,7 @@ router.post('/:approvalId/reject', authenticate, async (req, res, next) => {
       "UPDATE document_approvals SET status = 'rejected', comment = $1, decided_by = $2, decided_at = NOW() WHERE id = $3",
       [comment.trim(), req.user.id, approvalId])
 
+    recordAudit(pool, req.user.id, 'approval.rejected', 'document_approval', approvalId, { document_id: ap.document_id, step_order: ap.step_order, reason: comment.trim() })
     res.json({ message: 'Step rejected.' })
   } catch (err) { next(err) }
 })
@@ -334,8 +337,8 @@ router.post('/bulk-approve', authenticate, async (req, res, next) => {
         if (!apResult.rows.length) { skipped++; continue }
         const ap = apResult.rows[0]
         if (ap.status !== 'pending' || ap.doc_status === 'completed') { skipped++; continue }
-        const isDeptMatch = ap.assigned_department_id ? req.user.departmentId === ap.assigned_department_id : true
-        const isUserMatch = ap.assigned_to ? req.user.id === ap.assigned_to : true
+        const isDeptMatch = ap.assigned_department_id ? String(req.user.departmentId) === String(ap.assigned_department_id) : true
+        const isUserMatch = ap.assigned_to ? String(req.user.id) === String(ap.assigned_to) : true
         const isAdmin = req.user.role === 'admin'
         if (!isAdmin && (!isDeptMatch || !isUserMatch)) { skipped++; continue }
         await client.query(
@@ -375,8 +378,8 @@ router.post('/bulk-reject', authenticate, async (req, res, next) => {
         if (!apResult.rows.length) { skipped++; continue }
         const ap = apResult.rows[0]
         if (ap.status !== 'pending' || ap.doc_status === 'completed') { skipped++; continue }
-        const isDeptMatch = ap.assigned_department_id ? req.user.departmentId === ap.assigned_department_id : true
-        const isUserMatch = ap.assigned_to ? req.user.id === ap.assigned_to : true
+        const isDeptMatch = ap.assigned_department_id ? String(req.user.departmentId) === String(ap.assigned_department_id) : true
+        const isUserMatch = ap.assigned_to ? String(req.user.id) === String(ap.assigned_to) : true
         const isAdmin = req.user.role === 'admin'
         if (!isAdmin && (!isDeptMatch || !isUserMatch)) { skipped++; continue }
         await client.query(

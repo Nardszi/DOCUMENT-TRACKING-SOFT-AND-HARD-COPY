@@ -18,7 +18,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     fetch('/api/departments')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(data => setDepartments(Array.isArray(data) ? data : []))
       .catch(() => setApiError('Failed to load departments.'))
       .finally(() => setLoading(false))

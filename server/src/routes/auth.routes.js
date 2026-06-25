@@ -34,7 +34,6 @@ router.post('/login', async (req, res, next) => {
 
     const user = rows[0]
     if (!user) {
-      await recordAudit(pool, null, 'user.login.failure', 'user', null, { username })
       return res.status(401).json({ error: { code: 'INVALID_CREDENTIALS', message: 'Invalid username or password.' } })
     }
 

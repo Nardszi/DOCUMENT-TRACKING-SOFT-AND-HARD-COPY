@@ -45,7 +45,7 @@ class SSEManager {
     const userConns = this.connections.get(userId)
     if (!userConns || userConns.size === 0) return
     const data = `data: ${JSON.stringify(event)}\n\n`
-    for (const res of userConns) {
+    for (const res of [...userConns]) {
       try {
         res.write(data)
       } catch {

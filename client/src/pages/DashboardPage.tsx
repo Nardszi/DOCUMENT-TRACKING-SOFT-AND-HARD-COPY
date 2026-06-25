@@ -252,6 +252,7 @@ function KpiCard({ label, value, href, icon, iconColor, accent }: {
 function DeptDocSection({ tab, user, navigate }: {
   tab: DeptTab; user: any; navigate: ReturnType<typeof useNavigate>
 }) {
+  if (!user) return null
   const params = new URLSearchParams({ limit: '6', page: '1' })
   if (tab === 'department') params.set('department_id', String(user.departmentId))
   else params.set('created_by', String(user.id))

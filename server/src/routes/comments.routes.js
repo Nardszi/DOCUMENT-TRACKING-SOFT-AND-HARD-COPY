@@ -4,6 +4,26 @@ import { authenticate } from '../middleware/auth.js'
 
 const router = Router()
 
+async function canAccessDocument(userId, userRole, departmentId, documentId) {
+  if (userRole === 'admin') return true
+  const { rows } = await pool.query(
+    `SELECT d.id, d.status, d.current_department_id, d.created_by,
+            r.to_department_id AS routed_to_dept
+     FROM documents d
+     LEFT JOIN routings r ON r.document_id = d.id AND r.created_at = (
+       SELECT MAX(r2.created_at) FROM routings r2 WHERE r2.document_id = d.id
+     )
+     WHERE d.id = $1`,
+    [documentId]
+  )
+  if (!rows.length) return false
+  const doc = rows[0]
+  if (doc.status === 'forwarded' && String(doc.routed_to_dept) === String(departmentId)) return true
+  if (String(doc.current_department_id) === String(departmentId)) return true
+  if (String(doc.created_by) === String(userId)) return true
+  return false
+}
+
 // Helper: format a comment row with user + department
 function formatComment(r) {
   return {
@@ -22,6 +42,8 @@ function formatComment(r) {
 // GET /:documentId/comments
 router.get('/:documentId/comments', authenticate, async (req, res, next) => {
   try {
+    if (!await canAccessDocument(req.user.id, req.user.role, req.user.departmentId, req.params.documentId))
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } })
     const { rows } = await pool.query(
       `SELECT c.id, c.content, c.created_at, c.updated_at,
               u.id AS user_id, u.full_name AS user_full_name,
@@ -44,6 +66,8 @@ router.post('/:documentId/comments', authenticate, async (req, res, next) => {
     return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'content is required.' } })
   }
   try {
+    if (!await canAccessDocument(req.user.id, req.user.role, req.user.departmentId, req.params.documentId))
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } })
     const { rows } = await pool.query(
       `INSERT INTO document_comments (document_id, user_id, content)
        VALUES ($1, $2, $3)
@@ -78,6 +102,8 @@ router.patch('/:documentId/comments/:commentId', authenticate, async (req, res, 
     return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'content is required.' } })
   }
   try {
+    if (!await canAccessDocument(req.user.id, req.user.role, req.user.departmentId, req.params.documentId))
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } })
     // Fetch the comment first
     const { rows } = await pool.query(
       'SELECT id, user_id, created_at FROM document_comments WHERE id = $1 AND document_id = $2',
@@ -135,6 +161,8 @@ router.patch('/:documentId/comments/:commentId', authenticate, async (req, res, 
 // DELETE /:documentId/comments/:commentId (own comment or admin)
 router.delete('/:documentId/comments/:commentId', authenticate, async (req, res, next) => {
   try {
+    if (!await canAccessDocument(req.user.id, req.user.role, req.user.departmentId, req.params.documentId))
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } })
     // Fetch comment to check ownership
     const { rows } = await pool.query(
       'SELECT id, user_id FROM document_comments WHERE id = $1 AND document_id = $2',

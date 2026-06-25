@@ -82,7 +82,7 @@ export default function CommentsSection({ documentId }: CommentsSectionProps) {
   useEffect(() => {
     fetchComments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentId])
+  }, [documentId, token])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

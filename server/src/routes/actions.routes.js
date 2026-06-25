@@ -7,6 +7,19 @@ const router = Router()
 
 const VALID_ACTION_TYPES = ['Received', 'Reviewed', 'Approved', 'Returned']
 
+async function canAccessDocument(userId, userRole, departmentId, documentId) {
+  if (userRole === 'admin') return true
+  const { rows } = await pool.query(
+    `SELECT d.id, d.status, d.current_department_id, d.created_by FROM documents d WHERE d.id = $1`,
+    [documentId]
+  )
+  if (!rows.length) return false
+  const doc = rows[0]
+  if (String(doc.current_department_id) === String(departmentId)) return true
+  if (String(doc.created_by) === String(userId)) return true
+  return false
+}
+
 // POST /:documentId/actions — record an action (Req 4.1, 4.2)
 router.post('/:documentId/actions', authenticate, async (req, res, next) => {
   try {
@@ -19,6 +32,9 @@ router.post('/:documentId/actions', authenticate, async (req, res, next) => {
     if (!VALID_ACTION_TYPES.includes(action_type)) {
       return res.status(400).json({ error: { code: 'BAD_REQUEST', message: `action_type must be one of: ${VALID_ACTION_TYPES.join(', ')}.` } })
     }
+
+    if (!await canAccessDocument(req.user.id, req.user.role, req.user.departmentId, documentId))
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } })
 
     const docResult = await pool.query('SELECT id, status FROM documents WHERE id = $1', [documentId])
     if (!docResult.rows.length) {
@@ -46,6 +62,9 @@ router.post('/:documentId/actions', authenticate, async (req, res, next) => {
 router.patch('/:documentId/complete', authenticate, requireHeadOrAdmin, async (req, res, next) => {
   try {
     const { documentId } = req.params
+
+    if (!await canAccessDocument(req.user.id, req.user.role, req.user.departmentId, documentId))
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Access denied.' } })
 
     const docResult = await pool.query('SELECT id, status FROM documents WHERE id = $1', [documentId])
     if (!docResult.rows.length) {

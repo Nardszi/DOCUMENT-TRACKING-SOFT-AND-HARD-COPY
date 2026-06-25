@@ -182,17 +182,18 @@ router.get('/:id/qr-cover', authenticate, async (req, res, next) => {
     const doc = result.rows[0]
     const qrDataUrl = await generateQRCode(doc.id)
     const createdAt = new Date(doc.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cover Sheet - ' + doc.tracking_number + '</title>' +
+    const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cover Sheet - ' + esc(doc.tracking_number) + '</title>' +
       '<style>body{font-family:Arial,sans-serif;max-width:600px;margin:40px auto;padding:20px}' +
       '@media print{body{margin:0}}.header{text-align:center;border-bottom:2px solid #1d4ed8;padding-bottom:16px;margin-bottom:24px}' +
       '.field{margin-bottom:12px}.label{font-weight:bold;color:#374151;font-size:14px}.value{font-size:16px;color:#111827;margin-top:2px}' +
       '.qr{text-align:center;margin-top:32px}.qr img{width:200px;height:200px}.qr-caption{margin-top:8px;font-size:12px;color:#6b7280}</style></head><body>' +
       '<div class="header"><h1 style="color:#1d4ed8;margin:0">NONECO Document Tracking System</h1></div>' +
-      '<div class="field"><div class="label">Title</div><div class="value">' + doc.title + '</div></div>' +
-      '<div class="field"><div class="label">Tracking Number</div><div class="value">' + doc.tracking_number + '</div></div>' +
-      '<div class="field"><div class="label">Originating Department</div><div class="value">' + doc.originating_department_name + '</div></div>' +
-      '<div class="field"><div class="label">Created</div><div class="value">' + createdAt + '</div></div>' +
-      '<div class="field"><div class="label">Status</div><div class="value">' + doc.status + '</div></div>' +
+      '<div class="field"><div class="label">Title</div><div class="value">' + esc(doc.title) + '</div></div>' +
+      '<div class="field"><div class="label">Tracking Number</div><div class="value">' + esc(doc.tracking_number) + '</div></div>' +
+      '<div class="field"><div class="label">Originating Department</div><div class="value">' + esc(doc.originating_department_name) + '</div></div>' +
+      '<div class="field"><div class="label">Created</div><div class="value">' + esc(createdAt) + '</div></div>' +
+      '<div class="field"><div class="label">Status</div><div class="value">' + esc(doc.status) + '</div></div>' +
       '<div class="qr"><img src="' + qrDataUrl + '" alt="QR Code"/><div class="qr-caption">Scan to view digital record</div></div>' +
       '</body></html>'
     res.setHeader('Content-Type', 'text/html')
@@ -250,6 +251,9 @@ router.post('/bulk-delete', authenticate, async (req, res, next) => {
       await client.query('DELETE FROM notifications WHERE document_id = $1', [docId])
       await client.query('DELETE FROM attachments WHERE document_id = $1', [docId])
       await client.query('DELETE FROM tracking_log WHERE document_id = $1', [docId])
+      await client.query('DELETE FROM document_versions WHERE document_id = $1', [docId])
+      await client.query('DELETE FROM document_approvals WHERE document_id = $1', [docId])
+      await client.query('DELETE FROM document_recalls WHERE document_id = $1', [docId])
       await client.query('DELETE FROM routing_cc WHERE routing_id IN (SELECT id FROM routings WHERE document_id = $1)', [docId])
       await client.query('DELETE FROM routings WHERE document_id = $1', [docId])
       await client.query('DELETE FROM documents WHERE id = $1', [docId])
@@ -288,7 +292,7 @@ router.post('/bulk-set-priority', authenticate, async (req, res, next) => {
         const check = await client.query('SELECT id, current_department_id FROM documents WHERE id = $1', [docId])
         if (!check.rows.length) continue
         if (role !== 'admin' && String(check.rows[0].current_department_id) !== String(departmentId)) continue
-        await pool.query('UPDATE documents SET priority = $1, updated_at = NOW() WHERE id = $2', [normPri, docId])
+        await client.query('UPDATE documents SET priority = $1, updated_at = NOW() WHERE id = $2', [normPri, docId])
         updated++
       }
       await client.query('COMMIT')

@@ -435,13 +435,13 @@ function FlowManagement({ flows, flowsLoading, refetchFlows, token }: {
 
   async function handleDeleteStep(flowId: string, stepId: string) {
     await fetch(`/api/approvals/flows/${flowId}/steps/${stepId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
-    setStepsMap(prev => ({ ...prev, [flowId]: prev[flowId].filter(s => s.id !== stepId) }))
+    setStepsMap(prev => ({ ...prev, [flowId]: (prev[flowId] || []).filter(s => s.id !== stepId) }))
   }
 
   function handleStepDrag(flowId: string, fromIdx: number, toIdx: number) {
     setDragIdx(null); setOverIdx(null)
     setStepsMap(prev => {
-      const steps = [...prev[flowId]]
+      const steps = [...(prev[flowId] || [])]
       const [moved] = steps.splice(fromIdx, 1)
       steps.splice(toIdx, 0, moved)
       const updated = { ...prev, [flowId]: steps }

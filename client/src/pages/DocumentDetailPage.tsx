@@ -345,7 +345,7 @@ export default function DocumentDetailPage() {
         .then(data => setFlows(data))
         .catch(() => console.warn('Failed to load flows'))
     }
-  }, [id, token, user])
+  }, [id, token, user?.role])
 
   if (loading) return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950">

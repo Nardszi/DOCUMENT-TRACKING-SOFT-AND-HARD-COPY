@@ -62,7 +62,7 @@ router.post('/check-deadlines', authenticate, async (req, res, next) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Admin only.' } })
   try {
     const approaching = await pool.query(
-      `SELECT d.id, d.tracking_number, d.title, d.deadline, cd.name AS department_name,
+      `SELECT d.id, d.tracking_number, d.title, d.deadline, d.current_department_id, cd.name AS department_name,
               (d.deadline - CURRENT_DATE) AS days_left
        FROM documents d
        JOIN departments cd ON cd.id = d.current_department_id
@@ -74,7 +74,7 @@ router.post('/check-deadlines', authenticate, async (req, res, next) => {
     )
 
     const passed = await pool.query(
-      `SELECT d.id, d.tracking_number, d.title, d.deadline, cd.name AS department_name
+      `SELECT d.id, d.tracking_number, d.title, d.deadline, d.current_department_id, cd.name AS department_name
        FROM documents d
        JOIN departments cd ON cd.id = d.current_department_id
        WHERE d.deadline IS NOT NULL
@@ -89,7 +89,7 @@ router.post('/check-deadlines', authenticate, async (req, res, next) => {
 
     for (const doc of approaching.rows) {
       const notifMessage = `Document '${doc.tracking_number}' deadline is in ${doc.days_left} day(s).`
-      await createNotificationsForDept(pool, null, doc.id, 'deadline_approaching', notifMessage)
+      await createNotificationsForDept(pool, doc.current_department_id, doc.id, 'deadline_approaching', notifMessage)
       notified++
 
       if (emailEnabled) {
@@ -110,7 +110,7 @@ router.post('/check-deadlines', authenticate, async (req, res, next) => {
 
     for (const doc of passed.rows) {
       const notifMessage = `Document '${doc.tracking_number}' is OVERDUE. Deadline was ${doc.deadline}.`
-      await createNotificationsForDept(pool, null, doc.id, 'deadline_passed', notifMessage)
+      await createNotificationsForDept(pool, doc.current_department_id, doc.id, 'deadline_passed', notifMessage)
       notified++
 
       if (emailEnabled) {

@@ -312,7 +312,7 @@ function CategoryManagement({ token }: { token: string }) {
   const activeCount = categories.filter(c => c.is_active).length
 
   const handleSaved = () => { refetch(); setModalOpen(false); setEditCategory(null) }
-  const handleToggle = async (cat: Category) => { await fetch(`/api/categories/${cat.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ is_active: !cat.is_active }) }); refetch() }
+  const handleToggle = async (cat: Category) => { try { await fetch(`/api/categories/${cat.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ is_active: !cat.is_active }) }); refetch() } catch {} }
 
   return (
     <div>
