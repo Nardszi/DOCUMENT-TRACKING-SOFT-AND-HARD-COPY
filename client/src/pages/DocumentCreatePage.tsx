@@ -52,7 +52,7 @@ const inputCls = (hasError: boolean) =>
 
 export default function DocumentCreatePage() {
   useDocumentTitle('New Document')
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState<FormData>(INITIAL_FORM)
   const [errors, setErrors] = useState<Partial<FormData>>({})
@@ -76,8 +76,9 @@ export default function DocumentCreatePage() {
       setCategories(Array.isArray(cats) ? cats : [])
       setDepartments(Array.isArray(depts) ? depts : [])
       setTemplates(Array.isArray(tmpls) ? tmpls : [])
+      if (user?.departmentId) setForm(prev => ({ ...prev, originating_department_id: String(user.departmentId) }))
     }).catch(() => console.warn('[Create] Failed to load form data')).finally(() => setLoadingData(false)) 
-  }, [token])
+  }, [token, user?.departmentId])
 
   useEffect(() => {
     const saved = localStorage.getItem(DRAFT_KEY)
@@ -264,11 +265,11 @@ export default function DocumentCreatePage() {
               <Field id="originating_department_id" label="Originating Department" required error={errors.originating_department_id}>
                 <select id="originating_department_id" name="originating_department_id"
                   value={form.originating_department_id}
-                  onChange={handleChange} onBlur={handleBlur}
-                  aria-required="true" aria-invalid={!!errors.originating_department_id}
-                  className={inputCls(!!errors.originating_department_id)}>
-                  <option value="">Select department…</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
+                  disabled
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base text-stone-500 bg-stone-50 cursor-not-allowed dark:bg-stone-800 dark:text-stone-400 dark:border-stone-600">
+                  <option value="">{departments.find(d => String(d.id) === form.originating_department_id)
+                    ? `${departments.find(d => String(d.id) === form.originating_department_id)!.code} — ${departments.find(d => String(d.id) === form.originating_department_id)!.name}`
+                    : 'Loading…'}</option>
                 </select>
               </Field>
             </div>
