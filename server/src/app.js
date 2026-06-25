@@ -1,5 +1,7 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
+import morgan from 'morgan'
 import rateLimit from 'express-rate-limit'
 import { fileURLToPath } from 'url'
 import path from 'path'
@@ -31,8 +33,49 @@ const isVercel = process.env.VERCEL === '1'
 
 const app = express()
 
-app.use(express.json())
+// ── Security headers ──────────────────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}))
+
+// ── Request logging ───────────────────────────────────────────────────────────
+app.use(morgan(isProd ? 'combined' : 'dev', {
+  skip: (req) => req.path === '/api/health',
+}))
+
+app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ extended: true }))
+
+// ── CSRF-like protection: verify Origin on state-changing requests ────────────
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean)
+if (!ALLOWED_ORIGINS.length || ALLOWED_ORIGINS.includes('*')) {
+  ALLOWED_ORIGINS.push('http://localhost:5173', 'http://localhost:3000')
+  ALLOWED_ORIGINS.push(/\.vercel\.app$/)
+}
+
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    const origin = req.headers.origin || req.headers.referer
+    if (origin) {
+      const allowed = ALLOWED_ORIGINS.some(a =>
+        typeof a === 'string' ? origin.includes(a) : a.test(origin)
+      )
+      if (!allowed && !req.path.startsWith('/api/auth/register')) {
+        return res.status(403).json({ error: { code: 'CSRF_REJECTED', message: 'Request origin not allowed.' } })
+      }
+    }
+  }
+  next()
+})
 
 // ── JWT secret warning ────────────────────────────────────────────────────────
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-in-production') {
@@ -41,12 +84,31 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-in-
 }
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
+// Strict: login/register/reset — 5 attempts per 15 min
+const authStrictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many authentication attempts. Please try again in 15 minutes.' } },
+})
+
+// Moderate: general auth routes — 20 per 15 min
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,                   // 20 attempts per window
+  windowMs: 15 * 60 * 1000,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many attempts. Please try again later.' } },
+})
+
+// Global: all API routes — 300 requests per 15 min per IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Rate limit exceeded. Please slow down.' } },
 })
 
 // ── Run pending migrations on startup ─────────────────────────────────────────
@@ -75,7 +137,16 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+// Global API rate limit
+app.use('/api', globalLimiter)
+
+// Auth: strict limits on login/register/reset, moderate on others
+app.use('/api/auth/login', authStrictLimiter)
+app.use('/api/auth/register', authStrictLimiter)
+app.use('/api/auth/reset-password-request', authStrictLimiter)
+app.use('/api/auth/reset-password', authStrictLimiter)
 app.use('/api/auth', authLimiter, authRoutes)
+
 app.use('/api/users', userRoutes)
 app.use('/api/categories', categoryRoutes)
 app.use('/api/departments', departmentRoutes)

@@ -18,6 +18,24 @@ const ALLOWED_MIME_TYPES = new Set([
 ])
 
 // ---------------------------------------------------------------------------
+// Magic bytes → MIME validation (anti-MIME-spoofing)
+// ---------------------------------------------------------------------------
+const MAGIC_BYTES = {
+  'application/pdf': [0x25, 0x50, 0x44, 0x46],                                           // %PDF
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [0x50, 0x4B, 0x03, 0x04], // PK (ZIP)
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [0x50, 0x4B, 0x03, 0x04],         // PK (ZIP)
+  'image/png': [0x89, 0x50, 0x4E, 0x47],                                                 // .PNG
+  'image/jpeg': [0xFF, 0xD8, 0xFF],                                                       // ÿØÿ
+}
+
+function validateMagicBytes(buffer, declaredMime) {
+  const expected = MAGIC_BYTES[declaredMime]
+  if (!expected) return false
+  if (buffer.length < expected.length) return false
+  return expected.every((byte, i) => buffer[i] === byte)
+}
+
+// ---------------------------------------------------------------------------
 // Multer — memory storage, 20 MB limit (Requirement 2.6, 10.1)
 // ---------------------------------------------------------------------------
 const upload = multer({
@@ -87,6 +105,16 @@ router.post('/:documentId/attachments', authenticate, (req, res, next) => {
         error: {
           code: 'FILE_TYPE_INVALID',
           message: 'File type not allowed. Accepted types: PDF, DOCX, XLSX, PNG, JPG.',
+        },
+      })
+    }
+
+    // Validate magic bytes (anti-MIME-spoofing)
+    if (!validateMagicBytes(req.file.buffer, req.file.mimetype)) {
+      return res.status(400).json({
+        error: {
+          code: 'FILE_CONTENT_MISMATCH',
+          message: 'File content does not match declared type. Upload may be corrupted or renamed.',
         },
       })
     }
