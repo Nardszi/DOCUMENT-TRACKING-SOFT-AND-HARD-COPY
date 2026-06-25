@@ -115,6 +115,19 @@ async function generateXLSX(res, reportType, rows, filename) {
   res.end()
 }
 
+// POST /preview — returns JSON data for preview
+router.post('/preview', authenticate, requireHeadOrAdmin, async (req, res, next) => {
+  try {
+    const { report_type, date_from, date_to, department_id, status, category_id, priority } = req.body
+    if (!report_type || !VALID_REPORT_TYPES.includes(report_type)) {
+      return res.status(400).json({ error: { code: 'INVALID_REPORT_TYPE', message: `report_type must be one of: ${VALID_REPORT_TYPES.join(', ')}` } })
+    }
+    const query = buildQuery(report_type, { date_from, date_to, department_id, status, category_id, priority })
+    const { rows } = await pool.query(query)
+    res.json({ title: formatTitle(report_type), rows, generated_at: new Date().toISOString() })
+  } catch (err) { next(err) }
+})
+
 // POST /generate
 router.post('/generate', authenticate, requireHeadOrAdmin, async (req, res, next) => {
   try {
