@@ -123,7 +123,7 @@ export default function DocumentListPage() {
     else if (e.key === 'Escape') { setSuggestionsOpen(false); setHighlightedIdx(-1) }
   }
 
-  const canBulkAction = user?.role === 'department_head' || user?.role === 'admin'
+  const canBulkAction = user?.role === 'staff' || user?.role === 'department_head' || user?.role === 'admin'
 
   useEffect(() => {
     const headers = { Authorization: `Bearer ${token}` }
@@ -497,7 +497,7 @@ export default function DocumentListPage() {
 
         {error && <div role="alert" className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-base text-red-800">{error}</div>}
 
-        {/* Bulk action toolbar — only for department_head and admin */}
+        {/* Bulk action toolbar — available to all roles (scope-checked per document) */}
         {canBulkAction && selectedIds.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-2 sm:gap-3 rounded-2xl bg-amber-50 border border-amber-200 px-3 sm:px-4 py-3 shadow-card dark:bg-amber-900/20 dark:border-amber-800/40">
             <span className="text-sm font-bold text-stone-800 dark:text-stone-200 w-full sm:w-auto">{selectedIds.length} selected</span>
@@ -539,7 +539,7 @@ export default function DocumentListPage() {
                 Delete Selected
               </button>
             )}
-            {user?.role === 'department_head' && (
+            {(user?.role === 'admin' || user?.role === 'department_head' || user?.role === 'staff') && (
               <>
                 <button
                   type="button"

@@ -204,8 +204,6 @@ router.get('/:id/qr-cover', authenticate, async (req, res, next) => {
 // POST /bulk-complete
 router.post('/bulk-complete', authenticate, async (req, res, next) => {
   const { role } = req.user
-  if (role !== 'department_head' && role !== 'admin')
-    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
   const { document_ids } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
@@ -273,8 +271,6 @@ router.post('/bulk-delete', authenticate, async (req, res, next) => {
 // POST /bulk-set-priority
 router.post('/bulk-set-priority', authenticate, async (req, res, next) => {
   const { role, departmentId } = req.user
-  if (role !== 'department_head' && role !== 'admin')
-    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
   const { document_ids, priority } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
@@ -304,8 +300,6 @@ router.post('/bulk-set-priority', authenticate, async (req, res, next) => {
 // POST /bulk-forward — forward multiple documents (department_head or admin)
 router.post('/bulk-forward', authenticate, async (req, res, next) => {
   const { role, id: userId, departmentId } = req.user
-  if (role !== 'department_head' && role !== 'admin')
-    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
   const { document_ids, to_department_id, routing_note } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
@@ -341,8 +335,6 @@ router.post('/bulk-forward', authenticate, async (req, res, next) => {
 // POST /bulk-return — return multiple documents (department_head or admin)
 router.post('/bulk-return', authenticate, async (req, res, next) => {
   const { role, id: userId, departmentId } = req.user
-  if (role !== 'department_head' && role !== 'admin')
-    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions.' } })
   const { document_ids, reason } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })

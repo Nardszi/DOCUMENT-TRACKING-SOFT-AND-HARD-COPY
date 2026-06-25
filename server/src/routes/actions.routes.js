@@ -1,7 +1,6 @@
 import { Router } from 'express'
 import pool from '../db/pool.js'
 import { authenticate } from '../middleware/auth.js'
-import { requireHeadOrAdmin } from '../middleware/rbac.js'
 
 const router = Router()
 
@@ -59,7 +58,7 @@ router.post('/:documentId/actions', authenticate, async (req, res, next) => {
 })
 
 // PATCH /:documentId/complete — mark document as completed (Req 4.3, 4.4)
-router.patch('/:documentId/complete', authenticate, requireHeadOrAdmin, async (req, res, next) => {
+router.patch('/:documentId/complete', authenticate, async (req, res, next) => {
   try {
     const { documentId } = req.params
 

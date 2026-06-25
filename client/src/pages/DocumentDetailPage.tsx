@@ -339,7 +339,7 @@ export default function DocumentDetailPage() {
       .then(data => setApprovals(data))
       .catch(() => console.warn('Failed to load approvals'))
       .finally(() => setApprovalsLoading(false))
-    if (user?.role === 'admin' || user?.role === 'department_head') {
+    if (user?.role === 'admin' || user?.role === 'department_head' || user?.role === 'staff') {
       fetch('/api/approvals/flows', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : [])
         .then(data => setFlows(data))
@@ -376,7 +376,7 @@ export default function DocumentDetailPage() {
   )
 
   const isCompleted = doc.status === 'completed'
-  const canMarkComplete = user?.role === 'department_head' || user?.role === 'admin'
+  const canMarkComplete = user?.role === 'staff' || user?.role === 'department_head' || user?.role === 'admin'
   const canDelete = user?.role === 'admin'
   const canForward = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id))
   const canReturn = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id))
@@ -643,7 +643,7 @@ export default function DocumentDetailPage() {
                   <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Approvals</h2>
                   <span className="text-xs font-medium bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full dark:bg-stone-700 dark:text-stone-300">{approvals.length}</span>
                 </div>
-                {(user?.role === 'admin' || user?.role === 'department_head') && approvals.length === 0 && flows.length > 0 && (
+                {(user?.role === 'admin' || user?.role === 'department_head' || user?.role === 'staff') && approvals.length === 0 && flows.length > 0 && (
                   <button onClick={() => setShowAssignFlow(true)} className="text-xs font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400">Assign Flow</button>
                 )}
               </div>
