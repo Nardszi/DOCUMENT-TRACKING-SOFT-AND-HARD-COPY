@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -121,10 +121,13 @@ export default function ApprovalsPage() {
 
   const isAllSelected = pending.length > 0 && selectedIds.length === pending.length
   const isSomeSelected = selectedIds.length > 0 && selectedIds.length < pending.length
-  if (headerCheckRef.current) {
-    headerCheckRef.current.checked = isAllSelected
-    headerCheckRef.current.indeterminate = isSomeSelected
-  }
+
+  useEffect(() => {
+    if (headerCheckRef.current) {
+      headerCheckRef.current.checked = isAllSelected
+      headerCheckRef.current.indeterminate = isSomeSelected
+    }
+  }, [isAllSelected, isSomeSelected])
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
@@ -331,7 +334,7 @@ export default function ApprovalsPage() {
             <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-700">
               <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
                 {actionModal.type === 'approve' || actionModal.type === 'bulk-approve' ? 'Approve' : 'Reject'}
-                {actionModal.type.startsWith('bulk') ? ` (${actionModal.type === 'bulk-approve' ? selectedIds.length : selectedIds.length} items)` : ''}
+                {actionModal.type.startsWith('bulk') ? ` (${selectedIds.length} items)` : ''}
               </h3>
               {actionModal.title && <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 truncate">{actionModal.title}</p>}
             </div>

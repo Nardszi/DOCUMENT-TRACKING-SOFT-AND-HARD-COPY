@@ -12,7 +12,9 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import TrackingLogTimeline from '../components/TrackingLogTimeline'
 import CommentsSection from '../components/CommentsSection'
 import Skeleton from '../components/Skeleton'
+import { useToast } from '../components/ToastContainer'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { formatBytes, formatDateTime, formatDate } from '../utils/format'
 
 interface Department { id: number; code: string; name: string }
 interface User { id: number; full_name: string }
@@ -113,18 +115,6 @@ function PreviewModal({ attachment, docId, onClose }: {
   )
 }
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-function formatDateTime(dateStr: string) {
-  return new Date(dateStr).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
 function InfoField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -139,6 +129,7 @@ export default function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { token, user } = useAuth()
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
   const [doc, setDoc] = useState<DocumentDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -167,6 +158,8 @@ export default function DocumentDetailPage() {
   const [assignLoading, setAssignLoading] = useState(false)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [overIdx, setOverIdx] = useState<number | null>(null)
+  const [deleteAttId, setDeleteAttId] = useState<string | null>(null)
+  const [deleteAttName, setDeleteAttName] = useState('')
 
   function refetchDoc() {
     if (!id) return
@@ -221,7 +214,7 @@ export default function DocumentDetailPage() {
       refetchDoc()
     } catch (err) {
       refetchDoc()
-      alert(err instanceof Error ? err.message : 'Failed to mark complete.')
+      showToast(err instanceof Error ? err.message : 'Failed to mark complete.', 'error')
     } finally { setCompleting(false); setShowCompleteConfirm(false) }
   }
 
@@ -259,7 +252,7 @@ export default function DocumentDetailPage() {
       refetchDoc()
     } catch (err) {
       refetchDoc()
-      alert(err instanceof Error ? err.message : 'Failed to recall document.')
+      showToast(err instanceof Error ? err.message : 'Failed to recall document.', 'error')
     } finally {
       setRecalling(false)
     }
@@ -301,7 +294,7 @@ export default function DocumentDetailPage() {
       refetchDoc()
     } catch (err) {
       refetchDoc()
-      alert(err instanceof Error ? err.message : 'Failed to archive.')
+      showToast(err instanceof Error ? err.message : 'Failed to archive.', 'error')
     } finally { setArchiving(false); setShowArchiveConfirm(false) }
   }
 
@@ -317,8 +310,31 @@ export default function DocumentDetailPage() {
       refetchDoc()
     } catch (err) {
       refetchDoc()
-      alert(err instanceof Error ? err.message : 'Failed to restore.')
+      showToast(err instanceof Error ? err.message : 'Failed to restore.', 'error')
     } finally { setArchiving(false) }
+  }
+
+  async function handleDeleteAttachment() {
+    if (!deleteAttId || !doc) return
+    try {
+      const t = token ?? localStorage.getItem('noneco_token') ?? ''
+      const res = await fetch(`/api/documents/${doc.id}/attachments/${deleteAttId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${t}` },
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        showToast(err?.error?.message || 'Failed to delete attachment.', 'error')
+        return
+      }
+      setDoc(prev => prev ? { ...prev, attachments: prev.attachments.filter(a => String(a.id) !== deleteAttId) } : prev)
+      showToast('Attachment deleted.', 'success')
+    } catch {
+      showToast('Unable to connect. Please try again.', 'error')
+    } finally {
+      setDeleteAttId(null)
+      setDeleteAttName('')
+    }
   }
 
   useEffect(() => {
@@ -576,37 +592,33 @@ export default function DocumentDetailPage() {
                               Preview
                             </button>
                           )}
-                          <button onClick={() => {
-                            const t = token ?? localStorage.getItem('noneco_token') ?? ''
-                            const url = `/api/documents/${doc.id}/attachments/${att.id}?token=${encodeURIComponent(t)}`
-                            const a = document.createElement('a')
-                            a.href = url
-                            a.download = att.original_name
-                            document.body.appendChild(a)
-                            a.click()
-                            document.body.removeChild(a)
+                          <button onClick={async () => {
+                            try {
+                              const t = token ?? localStorage.getItem('noneco_token') ?? ''
+                              const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}/download`, {
+                                headers: { Authorization: `Bearer ${t}` },
+                              })
+                              if (!res.ok) throw new Error()
+                              const blob = await res.blob()
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement('a')
+                              a.href = url
+                              a.download = att.original_name
+                              document.body.appendChild(a)
+                              a.click()
+                              document.body.removeChild(a)
+                              URL.revokeObjectURL(url)
+                            } catch {
+                              showToast('Download failed.', 'error')
+                            }
                           }}
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                             Download
                           </button>
                           {String(att.uploaded_by.id) === String(user?.id) && (
-                            <button onClick={async () => {
-                              if (!window.confirm(`Delete "${att.original_name}"?`)) return
-                              try {
-                                const t = token ?? localStorage.getItem('noneco_token') ?? ''
-                                const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
-                                  method: 'DELETE',
-                                  headers: { Authorization: `Bearer ${t}` },
-                                })
-                                if (!res.ok) {
-                                  const err = await res.json().catch(() => ({}))
-                                  alert(err?.error?.message || 'Failed to delete attachment.')
-                                  return
-                                }
-                                setDoc(prev => prev ? { ...prev, attachments: prev.attachments.filter(a => a.id !== att.id) } : prev)
-                              } catch {
-                                alert('Unable to connect. Please try again.')
-                              }
+                            <button onClick={() => {
+                              setDeleteAttId(String(att.id))
+                              setDeleteAttName(att.original_name)
                             }}
                               className="min-h-[36px] px-3.5 py-2 rounded-xl border border-red-200 bg-white text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors dark:bg-stone-800 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30">
                               Delete
@@ -826,6 +838,12 @@ export default function DocumentDetailPage() {
           </div>
         </div>
       </div>
+    )}
+
+    {deleteAttId && (
+      <ConfirmDialog title="Delete Attachment"
+        message={`Permanently delete "${deleteAttName}"? This cannot be undone.`}
+        confirmLabel="Delete" onConfirm={handleDeleteAttachment} onCancel={() => { setDeleteAttId(null); setDeleteAttName('') }} danger />
     )}
     </>
   )

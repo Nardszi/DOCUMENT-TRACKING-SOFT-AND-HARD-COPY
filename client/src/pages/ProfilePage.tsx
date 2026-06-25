@@ -100,6 +100,8 @@ export default function ProfilePage() {
     if (!form.current_password) e.current_password = 'Required'
     if (!form.new_password) e.new_password = 'Required'
     else if (form.new_password.length < 8) e.new_password = 'Min 8 characters'
+    else if (!/[A-Z]/.test(form.new_password)) e.new_password = 'Must include an uppercase letter'
+    else if (!/[0-9]/.test(form.new_password)) e.new_password = 'Must include a number'
     if (!form.confirm_password) e.confirm_password = 'Required'
     else if (form.new_password !== form.confirm_password) e.confirm_password = 'No match'
     setErrors(e); return Object.keys(e).length === 0

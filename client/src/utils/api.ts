@@ -1,4 +1,4 @@
-const TOKEN_KEY = 'noneco_token'
+export const TOKEN_KEY = 'noneco_token'
 
 export async function api(url: string, options: RequestInit = {}, retries = 1): Promise<Response> {
   const token = localStorage.getItem(TOKEN_KEY)

@@ -42,7 +42,7 @@ export default function DocumentListPage() {
   const navigate = useNavigate()
   const [documents, setDocuments] = useState<Document[]>([])
   const [total, setTotal] = useState(0)
-  const [_page, setPage] = useState(1)
+  const [, forceRender] = useState(0)
   const pageRef = useRef(1)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -180,7 +180,7 @@ export default function DocumentListPage() {
         if (entries[0].isIntersecting && hasMore && !loading && !loadingMore && !cancelled) {
           const nextPage = pageRef.current + 1
           pageRef.current = nextPage
-          setPage(nextPage)
+          forceRender(n => n + 1)
           fetchDocuments(appliedFilters, nextPage, true)
         }
       },
@@ -229,7 +229,7 @@ export default function DocumentListPage() {
       const { completed, skipped } = data
       showToast(`${completed} marked complete.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
       setSelectedIds([])
-      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; forceRender(n => n + 1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk action failed', 'error')
     } finally {
@@ -250,7 +250,7 @@ export default function DocumentListPage() {
       if (!res.ok) throw new Error(data?.error?.message ?? 'Bulk delete failed')
       showToast(`${data.deleted} document${data.deleted !== 1 ? 's' : ''} deleted.`, 'success')
       setSelectedIds([])
-      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; forceRender(n => n + 1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk delete failed', 'error')
     } finally {
@@ -272,7 +272,7 @@ export default function DocumentListPage() {
       const { updated } = data
       showToast(`${updated} document${updated !== 1 ? 's' : ''} updated.`, 'success')
       setSelectedIds([])
-      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; forceRender(n => n + 1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk action failed', 'error')
     } finally {
@@ -302,7 +302,7 @@ export default function DocumentListPage() {
       const { forwarded, skipped } = data
       showToast(`${forwarded} document${forwarded !== 1 ? 's' : ''} forwarded.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
       setSelectedIds([]); setBulkForwardDept(''); setBulkForwardNote(''); setBulkMode(null)
-      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; forceRender(n => n + 1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk forward failed', 'error')
     } finally {
@@ -323,7 +323,7 @@ export default function DocumentListPage() {
       const { returned, skipped } = data
       showToast(`${returned} document${returned !== 1 ? 's' : ''} returned.${skipped > 0 ? ` ${skipped} skipped.` : ''}`, 'success')
       setSelectedIds([]); setBulkReturnReason(''); setBulkMode(null)
-      pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
+      pageRef.current = 1; forceRender(n => n + 1); setDocuments([]); setHasMore(true); fetchDocuments(appliedFilters, 1)
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Bulk return failed', 'error')
     } finally {
@@ -366,7 +366,7 @@ export default function DocumentListPage() {
 
         {/* Unified search + filter bar */}
         <form
-          onSubmit={(e) => { e.preventDefault(); pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); setAppliedFilters(f => ({ ...f, ...filters, search: searchQuery })) }}
+          onSubmit={(e) => { e.preventDefault(); pageRef.current = 1; forceRender(n => n + 1); setDocuments([]); setHasMore(true); setAppliedFilters(f => ({ ...f, ...filters, search: searchQuery })) }}
           className="bg-white rounded-2xl shadow-card border border-stone-200 p-4 mb-4 dark:bg-stone-800/80 dark:border-stone-700"
         >
           {/* Search row with auto-suggest */}
@@ -487,7 +487,7 @@ export default function DocumentListPage() {
               <button type="submit" className="min-h-[40px] px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all shadow-sm">
                 Apply Filters
               </button>
-              <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); pageRef.current = 1; setPage(1); setDocuments([]); setHasMore(true); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
+              <button type="button" onClick={() => { setFilters(EMPTY_FILTERS); pageRef.current = 1; forceRender(n => n + 1); setDocuments([]); setHasMore(true); setAppliedFilters(EMPTY_FILTERS); setSearchQuery(''); setSuggestions([]); setSuggestionsOpen(false); setHighlightedIdx(-1) }}
                 className="min-h-[40px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300 transition-all dark:border-stone-600 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600">
                 Clear
               </button>
@@ -651,7 +651,7 @@ export default function DocumentListPage() {
                             checked={isSelected}
                             onChange={() => toggleSelectOne(docId)}
                             aria-label={`Select document ${doc.tracking_number}`}
-                            className="mt-1 w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer flex-shrink-0"
+                            className="mt-1 w-4 h-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400 cursor-pointer flex-shrink-0"
                             onClick={e => e.stopPropagation()}
                           />
                         )}
@@ -716,7 +716,7 @@ export default function DocumentListPage() {
                             type="checkbox"
                             aria-label="Select all documents"
                             onChange={toggleSelectAll}
-                            className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
+                            className="w-4 h-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
                           />
                         </th>
                       )}
@@ -739,7 +739,7 @@ export default function DocumentListPage() {
                                 checked={isSelected}
                                 onChange={() => toggleSelectOne(docId)}
                                 aria-label={`Select document ${doc.tracking_number}`}
-                                className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
+                                className="w-4 h-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
                               />
                             </td>
                           )}
@@ -780,7 +780,7 @@ export default function DocumentListPage() {
               <button onClick={() => {
                 const nextPage = pageRef.current + 1
                 pageRef.current = nextPage
-                setPage(nextPage)
+                forceRender(n => n + 1)
                 fetchDocuments(appliedFilters, nextPage, true)
               }}
                 className="min-h-[36px] px-4 py-2 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-600 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all dark:bg-stone-800 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-700">

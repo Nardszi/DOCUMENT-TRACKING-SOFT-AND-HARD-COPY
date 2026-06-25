@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
@@ -285,19 +285,19 @@ export default function LoginPage() {
               ) : 'Sign In'}
             </button>
             <div className="flex justify-end -mt-2">
-              <a href="/forgot-password" className="text-xs text-stone-400 hover:text-amber-500 lg:text-stone-500 transition-colors">Forgot password?</a>
+              <Link to="/forgot-password" className="text-xs text-stone-400 hover:text-amber-500 lg:text-stone-500 transition-colors">Forgot password?</Link>
             </div>
           </form>
 
           {/* Sign up link */}
           <div className="mt-6 pt-5 border-t border-white/10 lg:border-stone-200">
             <p className="text-center text-xs text-stone-300 lg:text-stone-500 mb-3">Don't have an account?</p>
-            <a
-              href="/register"
+            <Link
+              to="/register"
               className="block w-full min-h-[44px] leading-[44px] rounded-xl border-2 border-amber-500/60 hover:border-amber-500 text-amber-400 hover:text-amber-300 lg:text-amber-600 lg:hover:text-amber-700 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
             >
               Sign Up
-            </a>
+            </Link>
             <p className="mt-3 text-center text-[11px] text-stone-500">For account issues, contact your system administrator.</p>
           </div>
         </div>

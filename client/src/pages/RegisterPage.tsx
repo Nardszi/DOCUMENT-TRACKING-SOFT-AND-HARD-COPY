@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import Skeleton from '../components/Skeleton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
@@ -228,7 +228,7 @@ export default function RegisterPage() {
 
               <p className="mt-6 text-center text-xs text-stone-400">
                 Already have an account?{' '}
-                <a href="/login" className="text-amber-500 hover:text-amber-400 font-semibold">Sign in</a>
+                <Link to="/login" className="text-amber-500 hover:text-amber-400 font-semibold">Sign in</Link>
               </p>
             </>
           )}

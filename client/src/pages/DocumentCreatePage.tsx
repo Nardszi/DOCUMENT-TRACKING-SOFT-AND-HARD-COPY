@@ -25,7 +25,7 @@ const INITIAL_FORM: FormData = {
 }
 
 const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Low', bg: 'bg-gray-100', text: 'text-gray-700', ring: 'ring-gray-300', active: 'bg-gray-200 ring-gray-500' },
+  { value: 'low', label: 'Low', bg: 'bg-stone-100', text: 'text-stone-700', ring: 'ring-stone-300', active: 'bg-stone-200 ring-stone-500' },
   { value: 'normal', label: 'Normal', bg: 'bg-blue-50', text: 'text-blue-700', ring: 'ring-blue-200', active: 'bg-blue-100 ring-blue-500' },
   { value: 'high', label: 'High', bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200', active: 'bg-amber-100 ring-amber-500' },
   { value: 'urgent', label: 'Urgent', bg: 'bg-red-50', text: 'text-red-700', ring: 'ring-red-200', active: 'bg-red-100 ring-red-500' },
@@ -65,6 +65,8 @@ export default function DocumentCreatePage() {
   const [submitError, setSubmitError] = useState('')
   const [draftRestored, setDraftRestored] = useState(false)
   const autosaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const formRef = useRef(form)
+  formRef.current = form
 
   useEffect(() => {
     const headers = { Authorization: `Bearer ${token}` }
@@ -92,9 +94,9 @@ export default function DocumentCreatePage() {
   }, [])
 
   useEffect(() => {
-    autosaveRef.current = setInterval(() => saveDraft(form), AUTOSAVE_INTERVAL)
+    autosaveRef.current = setInterval(() => saveDraft(formRef.current), AUTOSAVE_INTERVAL)
     return () => { if (autosaveRef.current) clearInterval(autosaveRef.current) }
-  }, [form, saveDraft])
+  }, [saveDraft])
 
   const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value ? Number(e.target.value) : null

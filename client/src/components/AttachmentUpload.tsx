@@ -49,7 +49,7 @@ export default function AttachmentUpload({ documentId, token, disabled, multiple
 
   if (disabled) {
     return (
-      <p className="text-sm text-gray-500 italic mt-2">
+      <p className="text-sm text-stone-500 italic mt-2">
         Attachments cannot be added to completed documents.
       </p>
     )
@@ -160,11 +160,11 @@ export default function AttachmentUpload({ documentId, token, disabled, multiple
         className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 ${
           dragOver
             ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'
+            : 'border-stone-300 bg-stone-50 hover:border-blue-400 hover:bg-blue-50'
         } ${isUploading ? 'pointer-events-none opacity-60' : ''}`}
       >
         <svg
-          className="mx-auto mb-2 w-8 h-8 text-gray-400"
+          className="mx-auto mb-2 w-8 h-8 text-stone-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -177,11 +177,11 @@ export default function AttachmentUpload({ documentId, token, disabled, multiple
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
           />
         </svg>
-        <p className="text-base text-gray-600">
+        <p className="text-base text-stone-600">
           Drag &amp; drop {multiple ? 'files' : 'a file'} here, or{' '}
           <span className="text-blue-600 font-medium underline">browse files</span>
         </p>
-        <p className="text-sm text-gray-400 mt-1">PDF, DOCX, XLSX, PNG, JPG — max 20 MB{multiple ? ' each' : ''}</p>
+        <p className="text-sm text-stone-400 mt-1">PDF, DOCX, XLSX, PNG, JPG — max 20 MB{multiple ? ' each' : ''}</p>
       </div>
 
       <input
@@ -225,10 +225,10 @@ export default function AttachmentUpload({ documentId, token, disabled, multiple
       {isUploading && (
         <div className="mt-3" role="status" aria-live="polite">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm text-gray-600">Uploading {currentFile}…</span>
-            <span className="text-sm font-medium text-gray-700">{progress}%</span>
+            <span className="text-sm text-stone-600">Uploading {currentFile}…</span>
+            <span className="text-sm font-medium text-stone-700">{progress}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="w-full bg-stone-200 rounded-full h-2.5">
             <div
               className="bg-blue-600 h-2.5 rounded-full transition-all duration-150"
               style={{ width: `${progress}%` }}

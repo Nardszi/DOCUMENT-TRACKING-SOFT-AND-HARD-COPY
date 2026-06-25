@@ -52,15 +52,18 @@ function buildScopeClause(user, startIdx) {
   }
 
   const deptId = user.departmentId
-  const params = [deptId]
-  const p = `$${startIdx}`
+  const userId = user.id
+  const params = [deptId, userId]
+  const pDept = `$${startIdx}`
+  const pUser = `$${startIdx + 1}`
 
   if (user.role === 'department_head') {
     const clause =
       '(' +
-      `d.originating_department_id = ${p}` +
-      ` OR d.current_department_id = ${p}` +
-      ` OR (d.status = 'forwarded' AND EXISTS (SELECT 1 FROM routings r WHERE r.document_id = d.id AND r.to_department_id = ${p}))` +
+      `d.originating_department_id = ${pDept}` +
+      ` OR d.current_department_id = ${pDept}` +
+      ` OR d.created_by = ${pUser}` +
+      ` OR (d.status = 'forwarded' AND EXISTS (SELECT 1 FROM routings r WHERE r.document_id = d.id AND r.to_department_id = ${pDept}))` +
       ')'
     return { clause, params }
   }
@@ -68,8 +71,9 @@ function buildScopeClause(user, startIdx) {
   // staff
   const clause =
     '(' +
-    `d.current_department_id = ${p}` +
-    ` OR (d.status = 'forwarded' AND EXISTS (SELECT 1 FROM routings r WHERE r.document_id = d.id AND r.to_department_id = ${p}))` +
+    `d.current_department_id = ${pDept}` +
+    ` OR d.created_by = ${pUser}` +
+    ` OR (d.status = 'forwarded' AND EXISTS (SELECT 1 FROM routings r WHERE r.document_id = d.id AND r.to_department_id = ${pDept}))` +
     ')'
   return { clause, params }
 }

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useAuth } from './AuthContext'
+import { api } from '../utils/api'
 
 interface NotificationContextValue {
   unreadCount: number
@@ -19,8 +20,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const refreshUnreadCount = useCallback(() => {
     if (!token) return
-    fetch('/api/notifications', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
+    api('/api/notifications')
+      .then((r) => r.ok ? r.json() : Promise.reject())
       .then((data) => setUnreadCount(data.unread_count ?? 0))
       .catch(() => { console.warn('[Notifications] Failed to fetch unread count') })
   }, [token])

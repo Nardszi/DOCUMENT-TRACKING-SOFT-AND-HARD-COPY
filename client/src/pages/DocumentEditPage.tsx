@@ -105,6 +105,7 @@ export default function DocumentEditPage() {
   const validateField = (name: keyof FormData, value: string): string => {
     if (name === 'title' && !value.trim()) return 'Title is required'
     if (name === 'category_id' && !value) return 'Category is required'
+    if (name === 'originating_department_id' && !value) return 'Originating department is required'
     return ''
   }
 
@@ -127,6 +128,7 @@ export default function DocumentEditPage() {
     const newErrors: Partial<FormData> = {
       title: validateField('title', form.title),
       category_id: validateField('category_id', form.category_id),
+      originating_department_id: validateField('originating_department_id', form.originating_department_id),
     }
     setErrors(newErrors)
     return !Object.values(newErrors).some(Boolean)

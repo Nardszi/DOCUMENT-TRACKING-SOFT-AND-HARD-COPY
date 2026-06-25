@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { TOKEN_KEY } from '../utils/api'
 
 // Cross-tab sync channel
 const AUTH_CHANNEL = 'noneco-auth-sync'
@@ -23,7 +24,6 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-const TOKEN_KEY = 'noneco_token'
 const INACTIVITY_TIMEOUT = 1800000 // 30 minutes
 
 function decodeToken(token: string): DecodedUser | null {

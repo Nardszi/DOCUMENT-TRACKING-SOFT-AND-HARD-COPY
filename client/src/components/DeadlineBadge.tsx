@@ -11,11 +11,11 @@ function formatDateLocal(dateStr: string): string {
 }
 
 const DeadlineBadge = memo(function DeadlineBadge({ deadline, isOverdue }: DeadlineBadgeProps) {
-  if (!deadline) return <span className="text-sm text-gray-400 dark:text-stone-500">—</span>
+  if (!deadline) return <span className="text-sm text-stone-400 dark:text-stone-500">—</span>
 
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={`text-sm ${isOverdue ? 'text-red-700 font-medium dark:text-red-400' : 'text-gray-700 dark:text-stone-300'}`}>
+      <span className={`text-sm ${isOverdue ? 'text-red-700 font-medium dark:text-red-400' : 'text-stone-700 dark:text-stone-300'}`}>
         {formatDateLocal(deadline)}
       </span>
       {isOverdue && (
