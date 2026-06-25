@@ -23,6 +23,7 @@ import { ToastProvider } from './components/ToastContainer'
 import OfflineIndicator from './components/OfflineIndicator'
 import SessionManager from './components/SessionManager'
 import ErrorBoundary from './components/ErrorBoundary'
+import GlobalDropZone from './components/GlobalDropZone'
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -47,7 +48,8 @@ function App() {
         <NotificationProvider>
           <ToastProvider>
            <OfflineIndicator />
-          <SessionManager />
+           <SessionManager />
+           <GlobalDropZone />
           <ErrorBoundary>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

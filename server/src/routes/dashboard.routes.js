@@ -136,4 +136,43 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 })
 
+// GET /api/dashboard/activity-feed — recent activity across the system
+router.get('/activity-feed', authenticate, async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50)
+    const { rows } = await pool.query(
+      `SELECT tl.id, tl.event_type, tl.created_at,
+              u.full_name AS user_name,
+              d.id AS document_id, d.title AS document_title, d.tracking_number,
+              dep.name AS department_name,
+              CASE
+                WHEN tl.event_type = 'forwarded' THEN 'forwarded'
+                WHEN tl.event_type = 'returned' THEN 'returned'
+                WHEN tl.event_type = 'completed' THEN 'completed'
+                WHEN tl.event_type = 'document_created' THEN 'created'
+                WHEN tl.event_type = 'action_recorded' THEN 'recorded an action on'
+                WHEN tl.event_type LIKE '%approved%' THEN 'approved'
+                ELSE tl.event_type
+              END AS action_verb
+       FROM tracking_log tl
+       JOIN users u ON u.id = tl.user_id
+       JOIN documents d ON d.id = tl.document_id
+       LEFT JOIN departments dep ON dep.id = tl.department_id
+       ORDER BY tl.created_at DESC
+       LIMIT $1`,
+      [limit]
+    )
+    res.json(rows.map(r => ({
+      id: String(r.id),
+      type: r.event_type,
+      user_name: r.user_name,
+      document_title: r.document_title,
+      document_id: String(r.document_id),
+      tracking_number: r.tracking_number,
+      detail: r.action_verb,
+      created_at: r.created_at,
+    })))
+  } catch (err) { next(err) }
+})
+
 export default router

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useTheme } from '../contexts/ThemeContext'
 import QuickSearch from './QuickSearch'
+import MobileBottomNav from './MobileBottomNav'
 
 interface NavItem {
   to: string
@@ -217,9 +218,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 pb-0 min-w-0 pt-14 lg:pt-0">
+      <main className="flex-1 pb-16 lg:pb-0 min-w-0 pt-14 lg:pt-0">
         {children}
       </main>
+
+      {/* Mobile bottom nav */}
+      <MobileBottomNav />
 
       {/* ── Mobile top header bar ── */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-stone-900/95 dark:bg-[#0f0e0d]/95 backdrop-blur-sm border-b border-stone-800">
