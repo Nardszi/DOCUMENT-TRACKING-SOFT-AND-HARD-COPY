@@ -32,7 +32,7 @@ router.post('/:documentId/forward', authenticate, async (req, res, next) => {
 
     // Check document exists
     const docResult = await pool.query(
-      'SELECT id, tracking_number, title, status, current_department_id FROM documents WHERE id = $1',
+      'SELECT id, tracking_number, title, status, current_department_id, created_by FROM documents WHERE id = $1',
       [documentId]
     )
     if (!docResult.rows.length) {
@@ -180,7 +180,7 @@ router.post('/:documentId/return', authenticate, async (req, res, next) => {
 
     // Check document exists
     const docResult = await pool.query(
-      'SELECT id, tracking_number, title, status, current_department_id FROM documents WHERE id = $1',
+      'SELECT id, tracking_number, title, status, current_department_id, created_by FROM documents WHERE id = $1',
       [documentId]
     )
     if (!docResult.rows.length) {
@@ -323,7 +323,7 @@ router.post('/:documentId/forward-all', authenticate, async (req, res, next) => 
     }
 
     const docResult = await pool.query(
-      'SELECT id, tracking_number, title, status, current_department_id FROM documents WHERE id = $1',
+      'SELECT id, tracking_number, title, status, current_department_id, created_by FROM documents WHERE id = $1',
       [documentId]
     )
     if (!docResult.rows.length) {
@@ -334,6 +334,13 @@ router.post('/:documentId/forward-all', authenticate, async (req, res, next) => 
       return res.status(403).json({
         error: { code: 'DOCUMENT_COMPLETED', message: 'Cannot forward a completed document.' },
       })
+    }
+
+    // Scope check: only admin, users in current dept, or creator can forward-all
+    if (req.user.role !== 'admin' &&
+        String(doc.current_department_id) !== String(req.user.departmentId) &&
+        String(doc.created_by) !== String(req.user.id)) {
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You cannot forward this document.' } })
     }
 
     // Get all departments except current
@@ -422,7 +429,7 @@ router.post('/:documentId/forward-all', authenticate, async (req, res, next) => 
     recordAudit(pool, req.user.id, 'document.forwarded', 'document', documentId, { to_all_departments: true, department_ids: allDeptIds })
 
     const updatedDoc = await pool.query(
-      'SELECT id, tracking_number, title, status, current_department_id FROM documents WHERE id = $1',
+      'SELECT id, tracking_number, title, status, current_department_id, created_by FROM documents WHERE id = $1',
       [documentId]
     )
     res.json(updatedDoc.rows[0])

@@ -376,10 +376,11 @@ export default function DocumentDetailPage() {
   )
 
   const isCompleted = doc.status === 'completed'
+  const isOwnDoc = user?.id === String(doc.created_by?.id)
   const canMarkComplete = user?.role === 'staff' || user?.role === 'department_head' || user?.role === 'admin'
   const canDelete = user?.role === 'admin'
-  const canForward = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id))
-  const canReturn = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id))
+  const canForward = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id) || isOwnDoc)
+  const canReturn = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id) || isOwnDoc)
   const canRecall = !isCompleted
     && doc.current_department.id !== doc.originating_department.id
     && (user?.role === 'admin' || user?.departmentId === String(doc.originating_department.id))

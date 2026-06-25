@@ -87,7 +87,8 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-in-
 // Strict: login/register/reset — 5 attempts per 15 min
 const authStrictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 20,
+  skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many authentication attempts. Please try again in 15 minutes.' } },
