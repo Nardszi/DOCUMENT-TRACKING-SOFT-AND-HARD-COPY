@@ -147,8 +147,7 @@ export default function ProfilePage() {
                 <div className="mt-5 pt-4 border-t border-stone-100 dark:border-stone-800 space-y-3">
                   {[
                     { icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>, label: 'Department', value: deptName },
-                    { icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>, label: 'Role', value: formatRole(user?.role ?? 'staff') },
-                    { icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>, label: 'Member ID', value: user?.id || '—' },
+                    { icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>, label: 'Member Since', value: user?.id ? new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—' },
                   ].map(row => (
                     <div key={row.label} className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-stone-100 dark:bg-stone-800 flex items-center justify-center shrink-0 text-stone-400 dark:text-stone-500">{row.icon}</div>
@@ -183,47 +182,36 @@ export default function ProfilePage() {
 
               {/* Account tab */}
               {activeTab === 'account' && (
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100 mb-1">Personal Information</h3>
-                    <p className="text-xs text-stone-500 dark:text-stone-400 mb-4">Manage your display name.</p>
-                    {!editingName ? (
-                      <div className="flex items-center justify-between p-4 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700">
-                        <div>
-                          <p className="text-[11px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Full Name</p>
-                          <p className="text-base font-semibold text-stone-900 dark:text-stone-100 mt-0.5">{user?.fullName}</p>
-                        </div>
-                        <button onClick={() => { setNameValue(user?.fullName || ''); setEditingName(true) }}
-                          className="px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm">Edit</button>
+                <div>
+                  <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100 mb-1">Personal Information</h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mb-4">Manage your display name.</p>
+                  {!editingName ? (
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700">
+                      <div>
+                        <p className="text-[11px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Full Name</p>
+                        <p className="text-base font-semibold text-stone-900 dark:text-stone-100 mt-0.5">{user?.fullName}</p>
                       </div>
-                    ) : (
-                      <form onSubmit={async (e) => {
-                        e.preventDefault(); if (!nameValue.trim()) return; setSavingName(true)
-                        try {
-                          const res = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ full_name: nameValue.trim() }) })
-                          if (!res.ok) throw new Error()
-                          const data = await res.json(); if (data.token) login(data.token)
-                          showToast('Name updated', 'success'); setEditingName(false)
-                        } catch { showToast('Failed to update.', 'error') } finally { setSavingName(false) }
-                      }} className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 space-y-3">
-                        <input type="text" value={nameValue} onChange={e => setNameValue(e.target.value)}
-                          className="w-full rounded-xl border border-stone-200 dark:border-stone-600 px-4 py-2.5 text-sm bg-white dark:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:text-stone-100" autoFocus />
-                        <div className="flex gap-2">
-                          <button type="submit" disabled={savingName || !nameValue.trim()} className="px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60 shadow-sm">{savingName ? 'Saving…' : 'Save'}</button>
-                          <button type="button" onClick={() => setEditingName(false)} className="px-4 py-2 rounded-xl border border-stone-200 dark:border-stone-600 text-sm font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-700">Cancel</button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-
-                  <div className="rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 p-4">
-                    <p className="text-[11px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-2">Account Details</p>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div><span className="text-stone-400 dark:text-stone-500 text-xs">Role</span><p className="font-medium text-stone-800 dark:text-stone-100">{formatRole(user?.role ?? 'staff')}</p></div>
-                      <div><span className="text-stone-400 dark:text-stone-500 text-xs">Department</span><p className="font-medium text-stone-800 dark:text-stone-100 truncate">{deptName}</p></div>
-                      <div className="col-span-2"><span className="text-stone-400 dark:text-stone-500 text-xs">Member ID</span><p className="font-medium text-stone-800 dark:text-stone-100 font-mono text-[13px]">{user?.id}</p></div>
+                      <button onClick={() => { setNameValue(user?.fullName || ''); setEditingName(true) }}
+                        className="px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 transition-colors shadow-sm">Edit</button>
                     </div>
-                  </div>
+                  ) : (
+                    <form onSubmit={async (e) => {
+                      e.preventDefault(); if (!nameValue.trim()) return; setSavingName(true)
+                      try {
+                        const res = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ full_name: nameValue.trim() }) })
+                        if (!res.ok) throw new Error()
+                        const data = await res.json(); if (data.token) login(data.token)
+                        showToast('Name updated', 'success'); setEditingName(false)
+                      } catch { showToast('Failed to update.', 'error') } finally { setSavingName(false) }
+                    }} className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800 border border-stone-100 dark:border-stone-700 space-y-3">
+                      <input type="text" value={nameValue} onChange={e => setNameValue(e.target.value)}
+                        className="w-full rounded-xl border border-stone-200 dark:border-stone-600 px-4 py-2.5 text-sm bg-white dark:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-400 dark:text-stone-100" autoFocus />
+                      <div className="flex gap-2">
+                        <button type="submit" disabled={savingName || !nameValue.trim()} className="px-4 py-2 rounded-xl bg-amber-500 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60 shadow-sm">{savingName ? 'Saving…' : 'Save'}</button>
+                        <button type="button" onClick={() => setEditingName(false)} className="px-4 py-2 rounded-xl border border-stone-200 dark:border-stone-600 text-sm font-medium text-stone-600 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-700">Cancel</button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               )}
 
