@@ -156,7 +156,13 @@ router.get('/', authenticate, async (req, res, next) => {
       whereClauses.push('(d.search_vector @@ plainto_tsquery(\'english\', ' + tsParam + ') OR d.tracking_number ILIKE ' + likeParam + ' OR d.title ILIKE ' + likeParam + ' OR dc.name ILIKE ' + likeParam + ' OR od.name ILIKE ' + likeParam + ' OR od.code ILIKE ' + likeParam + ')')
       orderClause = ' ORDER BY ts_rank(d.search_vector, plainto_tsquery(\'english\', ' + tsParam + ')) DESC, d.created_at DESC'
     }
-    if (req.query.status)        { params.push(req.query.status);        whereClauses.push('d.status = $' + params.length) }
+    if (req.query.status) {
+      const validStatuses = ['pending', 'in_progress', 'forwarded', 'returned', 'completed', 'archived']
+      if (!validStatuses.includes(req.query.status)) {
+        return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Invalid status value.' } })
+      }
+      params.push(req.query.status); whereClauses.push('d.status = $' + params.length)
+    }
     if (req.query.department_id) { params.push(req.query.department_id); whereClauses.push('d.current_department_id = $' + params.length) }
     if (req.query.deadline_from) { params.push(req.query.deadline_from); whereClauses.push('d.deadline >= $' + params.length) }
     if (req.query.deadline_to)   { params.push(req.query.deadline_to);   whereClauses.push('d.deadline <= $' + params.length) }
@@ -191,7 +197,13 @@ router.get('/all-ids', authenticate, async (req, res, next) => {
       const tsParam = '$' + params.length
       whereClauses.push('(d.search_vector @@ plainto_tsquery(\'english\', ' + tsParam + ') OR d.tracking_number ILIKE ' + likeParam + ' OR d.title ILIKE ' + likeParam + ' OR dc.name ILIKE ' + likeParam + ' OR od.name ILIKE ' + likeParam + ' OR od.code ILIKE ' + likeParam + ')')
     }
-    if (req.query.status)        { params.push(req.query.status);        whereClauses.push('d.status = $' + params.length) }
+    if (req.query.status) {
+      const validStatuses = ['pending', 'in_progress', 'forwarded', 'returned', 'completed', 'archived']
+      if (!validStatuses.includes(req.query.status)) {
+        return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Invalid status value.' } })
+      }
+      params.push(req.query.status); whereClauses.push('d.status = $' + params.length)
+    }
     if (req.query.department_id) { params.push(req.query.department_id); whereClauses.push('d.current_department_id = $' + params.length) }
     if (req.query.deadline_from) { params.push(req.query.deadline_from); whereClauses.push('d.deadline >= $' + params.length) }
     if (req.query.deadline_to)   { params.push(req.query.deadline_to);   whereClauses.push('d.deadline <= $' + params.length) }

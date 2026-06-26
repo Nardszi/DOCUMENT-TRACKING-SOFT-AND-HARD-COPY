@@ -22,7 +22,7 @@ const changePasswordSchema = z.object({ current_password: z.string().min(1), new
 router.post('/login', async (req, res, next) => {
   const parsed = loginSchema.safeParse(req.body)
   if (!parsed.success) {
-    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } })
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.issues[0].message } })
   }
   const { username, password } = parsed.data
 
@@ -131,7 +131,7 @@ router.post('/reset-password-request', async (req, res, next) => {
 router.post('/reset-password', async (req, res, next) => {
   const parsed = resetSchema.safeParse(req.body)
   if (!parsed.success) {
-    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } })
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.issues[0].message } })
   }
   const { token, newPassword } = parsed.data
 
@@ -162,7 +162,7 @@ router.post('/reset-password', async (req, res, next) => {
 router.post('/change-password', authenticate, async (req, res, next) => {
   const parsed = changePasswordSchema.safeParse(req.body)
   if (!parsed.success) {
-    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } })
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.issues[0].message } })
   }
   const { current_password, new_password } = parsed.data
   try {
@@ -180,7 +180,7 @@ router.post('/change-password', authenticate, async (req, res, next) => {
 router.post('/register', async (req, res, next) => {
   const parsed = registerSchema.safeParse(req.body)
   if (!parsed.success) {
-    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.errors[0].message } })
+    return res.status(400).json({ error: { code: 'BAD_REQUEST', message: parsed.error.issues[0].message } })
   }
   const { username, password, email, full_name, department_id } = parsed.data
   try {
