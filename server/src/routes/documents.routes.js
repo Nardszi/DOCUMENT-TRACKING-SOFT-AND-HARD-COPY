@@ -49,6 +49,7 @@ function formatDoc(row) {
     is_archived: row.is_archived,
     version: row.version,
     created_by: { id: row.created_by, full_name: row.creator_full_name },
+    comment_count: parseInt(row.comment_count) || 0,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -60,7 +61,8 @@ const DOC_SELECT_FULL =
   ' d.current_department_id, cd.code AS current_department_code, cd.name AS current_department_name,' +
   ' d.description, d.status, d.priority, d.deadline, d.created_by, u.full_name AS creator_full_name,' +
   ' d.created_at, d.updated_at, d.is_archived, d.version,' +
-  " (d.deadline IS NOT NULL AND d.deadline < CURRENT_DATE AND d.status != 'completed') AS is_overdue"
+  " (d.deadline IS NOT NULL AND d.deadline < CURRENT_DATE AND d.status != 'completed') AS is_overdue," +
+  ' (SELECT COUNT(*) FROM document_comments c WHERE c.document_id = d.id) AS comment_count'
 
 const DOC_JOINS_FULL =
   ' FROM documents d' +

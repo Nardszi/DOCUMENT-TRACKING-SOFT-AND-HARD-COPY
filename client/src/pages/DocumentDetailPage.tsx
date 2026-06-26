@@ -597,7 +597,7 @@ export default function DocumentDetailPage() {
                           <button onClick={async () => {
                             try {
                               const t = token ?? localStorage.getItem('noneco_token') ?? ''
-                              const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}/download`, {
+                              const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
                                 headers: { Authorization: `Bearer ${t}` },
                               })
                               if (!res.ok) throw new Error()

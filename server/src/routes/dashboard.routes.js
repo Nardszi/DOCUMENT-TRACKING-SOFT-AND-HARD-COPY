@@ -59,7 +59,8 @@ router.get('/', authenticate, async (req, res, next) => {
     // Recently updated (last 10)
     const recentResult = await pool.query(
       `SELECT d.id, d.tracking_number, d.title, d.status, d.priority,
-              d.current_department_id, cd.code AS dept_code, cd.name AS dept_name, d.updated_at
+              d.current_department_id, cd.code AS dept_code, cd.name AS dept_name, d.updated_at,
+              (SELECT COUNT(*) FROM document_comments c WHERE c.document_id = d.id) AS comment_count
        FROM documents d JOIN departments cd ON cd.id = d.current_department_id
        ${scopeWhere} ORDER BY d.updated_at DESC LIMIT 10`,
       scopeParams
@@ -68,13 +69,15 @@ router.get('/', authenticate, async (req, res, next) => {
       id: r.id, tracking_number: r.tracking_number, title: r.title,
       status: r.status, priority: r.priority,
       current_department: { id: r.current_department_id, code: r.dept_code, name: r.dept_name },
+      comment_count: parseInt(r.comment_count),
       updated_at: r.updated_at,
     }))
 
     // Approaching deadlines (next 7 days)
     const deadlineResult = await pool.query(
       `SELECT d.id, d.tracking_number, d.title, d.status, d.priority, d.deadline,
-              d.current_department_id, cd.code AS dept_code, cd.name AS dept_name, d.updated_at
+              d.current_department_id, cd.code AS dept_code, cd.name AS dept_name, d.updated_at,
+              (SELECT COUNT(*) FROM document_comments c WHERE c.document_id = d.id) AS comment_count
        FROM documents d JOIN departments cd ON cd.id = d.current_department_id
        ${scopeWhere} AND d.deadline IS NOT NULL AND d.deadline >= CURRENT_DATE
          AND d.deadline <= CURRENT_DATE + INTERVAL '7 days' AND d.status != 'completed'
@@ -85,6 +88,7 @@ router.get('/', authenticate, async (req, res, next) => {
       id: r.id, tracking_number: r.tracking_number, title: r.title,
       status: r.status, priority: r.priority, deadline: r.deadline,
       current_department: { id: r.current_department_id, code: r.dept_code, name: r.dept_name },
+      comment_count: parseInt(r.comment_count),
       updated_at: r.updated_at,
     }))
 
@@ -113,7 +117,8 @@ router.get('/', authenticate, async (req, res, next) => {
                 d.updated_at,
                 r.created_at AS forwarded_at,
                 u.full_name AS forwarded_by_name,
-                r.routing_note
+                r.routing_note,
+                (SELECT COUNT(*) FROM document_comments c WHERE c.document_id = d.id) AS comment_count
          FROM documents d
          JOIN departments cd ON cd.id = d.current_department_id
          JOIN routings r ON r.document_id = d.id AND r.to_department_id = $1
@@ -127,6 +132,7 @@ router.get('/', authenticate, async (req, res, next) => {
         id: r.id, tracking_number: r.tracking_number, title: r.title,
         status: r.status, priority: r.priority, deadline: r.deadline,
         current_department: { id: r.current_department_id, code: r.dept_code, name: r.dept_name },
+        comment_count: parseInt(r.comment_count),
         updated_at: r.updated_at,
         forwarded_at: r.forwarded_at,
         forwarded_by: r.forwarded_by_name,

@@ -706,6 +706,15 @@ export default function DocumentListPage() {
                             )}
                             <span>·</span>
                             <span>{formatUpdated(doc.updated_at)}</span>
+                            {(doc as any).comment_count > 0 && (
+                              <>
+                                <span>·</span>
+                                <span className="inline-flex items-center gap-0.5" title={`${(doc as any).comment_count} comment${(doc as any).comment_count !== 1 ? 's' : ''}`}>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                  {(doc as any).comment_count}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </button>
                         {/* Chevron */}
@@ -763,7 +772,15 @@ export default function DocumentListPage() {
                               {doc.is_archived && <span className="text-[10px] font-bold text-stone-500 bg-stone-100 border border-stone-300 px-1.5 py-0.5 rounded dark:text-stone-400 dark:bg-stone-700 dark:border-stone-600">ARCHIVED</span>}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-stone-900 max-w-xs cursor-pointer dark:text-stone-100" onClick={() => navigate(`/documents/${doc.id}`)}><span className="line-clamp-2">{doc.title}</span></td>
+                          <td className="px-4 py-3 text-stone-900 max-w-xs cursor-pointer dark:text-stone-100" onClick={() => navigate(`/documents/${doc.id}`)}>
+                            <span className="line-clamp-2">{doc.title}</span>
+                            {(doc as any).comment_count > 0 && (
+                              <span className="inline-flex items-center gap-0.5 ml-1.5 text-[10px] text-stone-400 dark:text-stone-500 align-middle" title={`${(doc as any).comment_count} comment${(doc as any).comment_count !== 1 ? 's' : ''}`}>
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                {(doc as any).comment_count}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.category?.name ?? '—'}</td>
                           <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><StatusBadge status={doc.status} /></td>
                           <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><PriorityBadge priority={doc.priority} /></td>

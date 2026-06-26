@@ -12,10 +12,10 @@ import { useApiQuery } from '../hooks/useApi'
 
 interface Department { id: string; code: string; name: string }
 type DeptTab = 'my' | 'department'
-interface DeptDoc { id: number; tracking_number: string; title: string; status: string; priority: string; deadline: string | null; is_overdue: boolean; current_department: Department; created_at: string; updated_at: string }
+interface DeptDoc { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string | null; is_overdue: boolean; current_department: Department; comment_count: number; created_at: string; updated_at: string }
 interface DashboardData {
   counts: { total: number; pending: number; in_progress: number; forwarded: number; returned: number; overdue: number; completed: number }
-  approaching_deadlines: { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string; current_department: Department }[]
+  approaching_deadlines: { id: string; tracking_number: string; title: string; status: string; priority: string; deadline: string; current_department: Department; comment_count: number }[]
   bottleneck: { department: Department; open_count: number } | null
   forwarded_to_me: { id: string; tracking_number: string; title: string; status: string; priority: string; forwarded_at: string; forwarded_by: string; routing_note: string }[]
 }
@@ -249,7 +249,15 @@ export default function DashboardPage() {
                           className="w-full text-left px-4 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors group">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-sm text-stone-700 dark:text-stone-300 truncate group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">{doc.title}</span>
-                            <span className="text-xs font-medium text-red-600 dark:text-red-400 shrink-0">{formatShortDate(doc.deadline)}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {doc.comment_count > 0 && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-stone-400 dark:text-stone-500" title={`${doc.comment_count} comment${doc.comment_count !== 1 ? 's' : ''}`}>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                  {doc.comment_count}
+                                </span>
+                              )}
+                              <span className="text-xs font-medium text-red-600 dark:text-red-400">{formatShortDate(doc.deadline)}</span>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 mt-1.5">
                             <StatusBadge status={doc.status} />
@@ -323,6 +331,12 @@ function DeptDocSection({ tab, user, navigate }: {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-stone-400 dark:text-stone-500">{doc.tracking_number}</span>
                   <span className="text-sm text-stone-700 dark:text-stone-300 truncate max-w-[200px]">{doc.title}</span>
+                  {doc.comment_count > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] text-stone-400 dark:text-stone-500 shrink-0" title={`${doc.comment_count} comment${doc.comment_count !== 1 ? 's' : ''}`}>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                      {doc.comment_count}
+                    </span>
+                  )}
                 </div>
               </td>
               <td className="px-4 py-2.5 hidden sm:table-cell"><StatusBadge status={doc.status} /></td>
