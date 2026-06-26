@@ -106,7 +106,24 @@ router.patch('/flows/:flowId/steps/reorder', authenticate, requireAdmin, async (
           [i + 1, ordered_ids[i], req.params.flowId])
       }
       await client.query('COMMIT')
-    } catch (err) { await client.query('ROLLBACK'); throw err } finally { client.release() }
+    } catch (err) {
+      if (err.code === '23505') {
+        await client.query('ROLLBACK')
+        for (let i = 0; i < ordered_ids.length; i++) {
+          await client.query(
+            'UPDATE approval_flow_steps SET step_order = $1 WHERE id = $2 AND flow_id = $3',
+            [-(i + 1), ordered_ids[i], req.params.flowId])
+        }
+        for (let i = 0; i < ordered_ids.length; i++) {
+          await client.query(
+            'UPDATE approval_flow_steps SET step_order = $1 WHERE id = $2 AND flow_id = $3',
+            [i + 1, ordered_ids[i], req.params.flowId])
+        }
+      } else {
+        await client.query('ROLLBACK')
+        throw err
+      }
+    } finally { client.release() }
     res.json({ message: 'Steps reordered.' })
   } catch (err) { next(err) }
 })
@@ -210,14 +227,12 @@ router.post('/:approvalId/approve', authenticate, async (req, res, next) => {
       "UPDATE document_approvals SET status = 'approved', comment = $1, decided_by = $2, decided_at = NOW() WHERE id = $3",
       [comment || null, req.user.id, approvalId])
 
-    // Check if all steps are now approved — if so, update doc status
+    // Check if all steps are now approved — log completion (doc status stays as-is)
     const remaining = await pool.query(
       "SELECT id FROM document_approvals WHERE document_id = $1 AND status = 'pending' LIMIT 1",
       [ap.document_id])
     if (!remaining.rows.length) {
-      await pool.query(
-        "UPDATE documents SET status = 'approved', updated_at = NOW() WHERE id = $1",
-        [ap.document_id])
+      recordAudit(pool, req.user.id, 'approval.all_approved', 'document', ap.document_id, { document_id: ap.document_id })
     }
 
     recordAudit(pool, req.user.id, 'approval.approved', 'document_approval', approvalId, { document_id: ap.document_id, step_order: ap.step_order })
@@ -348,7 +363,7 @@ router.post('/bulk-approve', authenticate, async (req, res, next) => {
         const remaining = await client.query(
           "SELECT id FROM document_approvals WHERE document_id = $1 AND status = 'pending' LIMIT 1", [ap.document_id])
         if (!remaining.rows.length) {
-          await client.query("UPDATE documents SET status = 'approved', updated_at = NOW() WHERE id = $1", [ap.document_id])
+          recordAudit(pool, req.user.id, 'approval.all_approved', 'document', ap.document_id, { document_id: ap.document_id })
         }
       }
       await client.query('COMMIT')
