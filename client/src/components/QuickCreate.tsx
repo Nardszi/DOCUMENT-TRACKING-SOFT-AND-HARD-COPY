@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
-interface Category { id: number; name: string }
-interface Department { id: number; code: string; name: string }
+interface Category { id: string; name: string }
+interface Department { id: string; code: string; name: string }
 
 export default function QuickCreate() {
   const { token, user } = useAuth()
@@ -54,8 +54,8 @@ export default function QuickCreate() {
     try {
       const body: Record<string, unknown> = {
         title: title.trim(),
-        category_id: Number(categoryId),
-        originating_department_id: Number(deptId),
+        category_id: categoryId,
+        originating_department_id: deptId,
         priority,
       }
       if (description.trim()) body.description = description.trim()
