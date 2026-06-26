@@ -328,7 +328,7 @@ function DeptDocSection({ tab, user, navigate }: {
               <td className="px-4 py-2.5 hidden sm:table-cell"><StatusBadge status={doc.status} /></td>
               <td className="px-4 py-2.5 hidden md:table-cell"><PriorityBadge priority={doc.priority} /></td>
               <td className="px-4 py-2.5 hidden lg:table-cell">
-                <span className="text-xs text-stone-500 dark:text-stone-400">{doc.current_department.code}</span>
+                <span className="text-xs text-stone-500 dark:text-stone-400">{doc.current_department?.code ?? '—'}</span>
               </td>
             </tr>
           ))}

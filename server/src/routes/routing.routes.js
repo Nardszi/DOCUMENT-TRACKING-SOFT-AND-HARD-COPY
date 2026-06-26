@@ -156,7 +156,19 @@ router.post('/:documentId/forward', authenticate, async (req, res, next) => {
     }
 
     recordAudit(pool, req.user.id, 'document.forwarded', 'document', documentId, { to_department_id })
-    res.json(updatedDoc)
+
+    const finalDoc = await pool.query(
+      `SELECT d.id, d.tracking_number, d.title, d.status, d.current_department_id,
+              dept.code AS dept_code, dept.name AS dept_name
+       FROM documents d JOIN departments dept ON dept.id = d.current_department_id
+       WHERE d.id = $1`,
+      [documentId]
+    )
+    const fRow = finalDoc.rows[0]
+    res.json({
+      id: fRow.id, tracking_number: fRow.tracking_number, title: fRow.title, status: fRow.status,
+      current_department: { id: fRow.current_department_id, code: fRow.dept_code, name: fRow.dept_name }
+    })
   } catch (err) {
     next(err)
   }
@@ -302,7 +314,19 @@ router.post('/:documentId/return', authenticate, async (req, res, next) => {
     }
 
     recordAudit(pool, req.user.id, 'document.returned', 'document', documentId, { to_department_id: previousFromDept })
-    res.json(updatedDoc)
+
+    const finalDoc = await pool.query(
+      `SELECT d.id, d.tracking_number, d.title, d.status, d.current_department_id,
+              dept.code AS dept_code, dept.name AS dept_name
+       FROM documents d JOIN departments dept ON dept.id = d.current_department_id
+       WHERE d.id = $1`,
+      [documentId]
+    )
+    const fRow = finalDoc.rows[0]
+    res.json({
+      id: fRow.id, tracking_number: fRow.tracking_number, title: fRow.title, status: fRow.status,
+      current_department: { id: fRow.current_department_id, code: fRow.dept_code, name: fRow.dept_name }
+    })
   } catch (err) {
     next(err)
   }
@@ -429,10 +453,17 @@ router.post('/:documentId/forward-all', authenticate, async (req, res, next) => 
     recordAudit(pool, req.user.id, 'document.forwarded', 'document', documentId, { to_all_departments: true, department_ids: allDeptIds })
 
     const updatedDoc = await pool.query(
-      'SELECT id, tracking_number, title, status, current_department_id, created_by FROM documents WHERE id = $1',
+      `SELECT d.id, d.tracking_number, d.title, d.status, d.current_department_id,
+              dept.code AS dept_code, dept.name AS dept_name
+       FROM documents d JOIN departments dept ON dept.id = d.current_department_id
+       WHERE d.id = $1`,
       [documentId]
     )
-    res.json(updatedDoc.rows[0])
+    const row = updatedDoc.rows[0]
+    res.json({
+      id: row.id, tracking_number: row.tracking_number, title: row.title, status: row.status,
+      current_department: { id: row.current_department_id, code: row.dept_code, name: row.dept_name }
+    })
   } catch (err) { next(err) }
 })
 

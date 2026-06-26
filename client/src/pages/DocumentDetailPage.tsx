@@ -168,8 +168,10 @@ export default function DocumentDetailPage() {
       .then(data => setDoc(data)).catch(() => console.warn('Failed to refetch doc'))
   }
 
-  function handleRoutingSuccess(updatedDoc: { id: number; status: string; current_department: { id: number; code: string; name: string } }) {
-    setDoc(prev => prev ? { ...prev, status: updatedDoc.status, current_department: updatedDoc.current_department } : prev)
+  function handleRoutingSuccess(updatedDoc: { id: number; status: string; current_department?: { id: number; code: string; name: string } }) {
+    if (updatedDoc.current_department) {
+      setDoc(prev => prev ? { ...prev, status: updatedDoc.status, current_department: updatedDoc.current_department! } : prev)
+    }
     refetchDoc()
   }
 
@@ -395,11 +397,11 @@ export default function DocumentDetailPage() {
   const isOwnDoc = user?.id === String(doc.created_by?.id)
   const canMarkComplete = user?.role === 'staff' || user?.role === 'department_head' || user?.role === 'admin'
   const canDelete = user?.role === 'admin'
-  const canForward = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id) || isOwnDoc)
-  const canReturn = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department.id) || isOwnDoc)
+  const canForward = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department?.id) || isOwnDoc)
+  const canReturn = !isCompleted && (user?.role === 'admin' || user?.departmentId === String(doc.current_department?.id) || isOwnDoc)
   const canRecall = !isCompleted
-    && doc.current_department.id !== doc.originating_department.id
-    && (user?.role === 'admin' || user?.departmentId === String(doc.originating_department.id))
+    && String(doc.current_department?.id) !== String(doc.originating_department?.id)
+    && (user?.role === 'admin' || user?.departmentId === String(doc.originating_department?.id))
   const canArchive = user?.role === 'admin' || user?.role === 'department_head'
 
   return (
@@ -537,16 +539,16 @@ export default function DocumentDetailPage() {
               </div>
               <div className="p-5">
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                  <InfoField label="Category">{doc.category.name}</InfoField>
+                  <InfoField label="Category">{doc.category?.name ?? '—'}</InfoField>
                   <InfoField label="Priority"><PriorityBadge priority={doc.priority} /></InfoField>
                   <InfoField label="Deadline"><DeadlineBadge deadline={doc.deadline} isOverdue={doc.is_overdue} /></InfoField>
                   <InfoField label="Originating Department">
-                    <span className="font-medium">{doc.originating_department.code}</span> — {doc.originating_department.name}
+                    <span className="font-medium">{doc.originating_department?.code ?? '—'}</span> — {doc.originating_department?.name ?? '—'}
                   </InfoField>
                   <InfoField label="Current Department">
-                    <span className="font-medium">{doc.current_department.code}</span> — {doc.current_department.name}
+                    <span className="font-medium">{doc.current_department?.code ?? '—'}</span> — {doc.current_department?.name ?? '—'}
                   </InfoField>
-                  <InfoField label="Created By">{doc.created_by.full_name}</InfoField>
+                  <InfoField label="Created By">{doc.created_by?.full_name ?? 'Unknown'}</InfoField>
                   <InfoField label="Created At">{formatDate(doc.created_at)}</InfoField>
                 </dl>
                 {doc.description && (
@@ -755,7 +757,7 @@ export default function DocumentDetailPage() {
       </div>
     </div>
 
-    {showForwardModal && id && <RoutingModal documentId={id} token={token ?? ''} currentDepartmentId={doc.current_department.id} onSuccess={handleRoutingSuccess} onClose={() => setShowForwardModal(false)} />}
+    {showForwardModal && id && <RoutingModal documentId={id} token={token ?? ''} currentDepartmentId={doc.current_department?.id ?? 0} onSuccess={handleRoutingSuccess} onClose={() => setShowForwardModal(false)} />}
     {showReturnModal && id && <ReturnModal documentId={id} token={token ?? ''} returnToDept={doc.originating_department} onSuccess={handleRoutingSuccess} onClose={() => setShowReturnModal(false)} />}
     {showActionModal && id && <ActionModal documentId={id} token={token ?? ''} onSuccess={refetchDoc} onClose={() => setShowActionModal(false)} />}
     {showCompleteConfirm && (

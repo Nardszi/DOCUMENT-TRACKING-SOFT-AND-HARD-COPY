@@ -695,9 +695,9 @@ export default function DocumentListPage() {
                           </div>
                           {/* Meta row */}
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-400 dark:text-stone-500">
-                            <span>{doc.category.name}</span>
+                            <span>{doc.category?.name ?? '—'}</span>
                             <span>·</span>
-                            <span>{doc.current_department.code}</span>
+                            <span>{doc.current_department?.code ?? '—'}</span>
                             {doc.deadline && (
                               <>
                                 <span>·</span>
@@ -764,10 +764,10 @@ export default function DocumentListPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-stone-900 max-w-xs cursor-pointer dark:text-stone-100" onClick={() => navigate(`/documents/${doc.id}`)}><span className="line-clamp-2">{doc.title}</span></td>
-                          <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.category.name}</td>
+                          <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.category?.name ?? '—'}</td>
                           <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><StatusBadge status={doc.status} /></td>
                           <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><PriorityBadge priority={doc.priority} /></td>
-                          <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.current_department.code}</td>
+                          <td className="px-4 py-3 text-stone-600 whitespace-nowrap cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{doc.current_department?.code ?? '—'}</td>
                           <td className="px-4 py-3 whitespace-nowrap cursor-pointer" onClick={() => navigate(`/documents/${doc.id}`)}><DeadlineBadge deadline={doc.deadline} isOverdue={doc.is_overdue} /></td>
                           <td className="px-4 py-3 text-stone-500 whitespace-nowrap text-sm cursor-pointer dark:text-stone-400" onClick={() => navigate(`/documents/${doc.id}`)}>{formatUpdated(doc.updated_at)}</td>
                         </tr>

@@ -161,10 +161,10 @@ export default function CommentsSection({ documentId }: CommentsSectionProps) {
   }
 
   const canEdit = (comment: Comment) =>
-    user?.id === comment.user.id && isWithin24h(comment)
+    user?.id === comment.user?.id && isWithin24h(comment)
 
   const canDelete = (comment: Comment) =>
-    user?.role === 'admin' || user?.id === comment.user.id
+    user?.role === 'admin' || user?.id === comment.user?.id
 
   if (loading) {
     return <p className="text-sm text-stone-500">Loading comments…</p>
@@ -215,8 +215,8 @@ export default function CommentsSection({ documentId }: CommentsSectionProps) {
                 <>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <span className="text-sm font-semibold text-stone-900 dark:text-stone-100">{comment.user.full_name}</span>
-                      {comment.user.department && (
+                      <span className="text-sm font-semibold text-stone-900 dark:text-stone-100">{comment.user?.full_name ?? 'Unknown'}</span>
+                      {comment.user?.department && (
                         <span className="ml-1.5 text-xs text-stone-500 dark:text-stone-400">· {comment.user.department}</span>
                       )}
                       <span className="ml-1.5 text-xs text-stone-400 dark:text-stone-500">{formatDateTime(comment.created_at)}</span>

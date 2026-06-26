@@ -52,7 +52,7 @@ export default function TrackingLogTimeline({ entries }: { entries: TrackingEntr
             {/* Content */}
             <div className="flex-1 pb-4 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-stone-800 dark:text-stone-200">{entry.user.full_name}</span>
+                <span className="text-sm font-medium text-stone-800 dark:text-stone-200">{entry.user?.full_name ?? 'Unknown'}</span>
                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold ${cfg.bg} ${cfg.text}`}>
                   {cfg.label}
                 </span>

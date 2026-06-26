@@ -583,6 +583,7 @@ router.patch('/:id', authenticate, async (req, res, next) => {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
 
     const docResult = await pool.query('SELECT ' + DOC_SELECT_FULL + DOC_JOINS_FULL + ' WHERE d.id = $1', [id])
+    if (!docResult.rows.length) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
     res.json(formatDoc(docResult.rows[0]))
   } catch (err) { next(err) }
 })
