@@ -32,6 +32,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Backups
+D:/noneco-backups/
+
 # Test coverage
 coverage/
 .nyc_output/

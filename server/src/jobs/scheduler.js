@@ -7,6 +7,7 @@ import { startEscalateOverdueJob } from './escalate-overdue.job.js'
 import { startTokenCleanupJob } from './cleanup-tokens.job.js'
 import { startAuditRetentionJob } from './audit-retention.job.js'
 import { startApprovalEscalationJob } from './approval-escalation.job.js'
+import { startBackupJob } from './backup-database.job.js'
 
 export function startAllJobs() {
   console.log('[scheduler] Starting all scheduled jobs...')
@@ -20,6 +21,7 @@ export function startAllJobs() {
   startTokenCleanupJob()
   startAuditRetentionJob()
   startApprovalEscalationJob()
+  startBackupJob()
 
   console.log('[scheduler] All jobs scheduled.')
 }
