@@ -175,6 +175,36 @@ router.get('/', authenticate, async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+// GET /all-ids -- return all document IDs matching filters (for bulk select-all)
+router.get('/all-ids', authenticate, async (req, res, next) => {
+  try {
+    const params = []
+    const whereClauses = []
+    const scope = buildScopeClause(req.user, params.length + 1)
+    if (scope.params.length) params.push(...scope.params)
+    whereClauses.push(scope.clause)
+    if (req.query.search) {
+      const sv = '%' + req.query.search + '%'
+      params.push(sv)
+      const likeParam = '$' + params.length
+      params.push(req.query.search)
+      const tsParam = '$' + params.length
+      whereClauses.push('(d.search_vector @@ plainto_tsquery(\'english\', ' + tsParam + ') OR d.tracking_number ILIKE ' + likeParam + ' OR d.title ILIKE ' + likeParam + ' OR dc.name ILIKE ' + likeParam + ' OR od.name ILIKE ' + likeParam + ' OR od.code ILIKE ' + likeParam + ')')
+    }
+    if (req.query.status)        { params.push(req.query.status);        whereClauses.push('d.status = $' + params.length) }
+    if (req.query.department_id) { params.push(req.query.department_id); whereClauses.push('d.current_department_id = $' + params.length) }
+    if (req.query.deadline_from) { params.push(req.query.deadline_from); whereClauses.push('d.deadline >= $' + params.length) }
+    if (req.query.deadline_to)   { params.push(req.query.deadline_to);   whereClauses.push('d.deadline <= $' + params.length) }
+    if (req.query.priority)      { params.push(req.query.priority);      whereClauses.push('d.priority = $' + params.length) }
+    if (req.query.category_id)   { params.push(req.query.category_id);   whereClauses.push('d.category_id = $' + params.length) }
+    if (req.query.created_by)    { params.push(req.query.created_by);    whereClauses.push('d.created_by = $' + params.length) }
+    if (req.query.include_archived !== '1') { whereClauses.push("d.is_archived = FALSE") }
+    const whereSQL = whereClauses.length ? ' WHERE ' + whereClauses.join(' AND ') : ''
+    const result = await pool.query('SELECT d.id FROM documents d JOIN document_categories dc ON dc.id = d.category_id JOIN departments od ON od.id = d.originating_department_id' + whereSQL, params)
+    res.json({ ids: result.rows.map(r => String(r.id)), total: result.rows.length })
+  } catch (err) { next(err) }
+})
+
 // GET /:id/qr-cover
 router.get('/:id/qr-cover', authenticate, async (req, res, next) => {
   try {

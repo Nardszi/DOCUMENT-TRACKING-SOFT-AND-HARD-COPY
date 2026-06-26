@@ -196,18 +196,32 @@ export default function DocumentListPage() {
   // Update header checkbox indeterminate state
   useEffect(() => {
     if (!headerCheckboxRef.current) return
-    const allSelected = documents.length > 0 && selectedIds.length === documents.length
-    const someSelected = selectedIds.length > 0 && selectedIds.length < documents.length
+    const allSelected = total > 0 && selectedIds.length === total
+    const someSelected = selectedIds.length > 0 && selectedIds.length < total
     headerCheckboxRef.current.checked = allSelected
     headerCheckboxRef.current.indeterminate = someSelected
-  }, [selectedIds, documents])
+  }, [selectedIds, total])
 
-  function toggleSelectAll() {
-    if (selectedIds.length === documents.length) {
+  async function toggleSelectAll() {
+    if (selectedIds.length === total) {
       setSelectedIds([])
-    } else {
-      setSelectedIds(documents.map(d => String(d.id)))
+      return
     }
+    try {
+      const params = new URLSearchParams()
+      if (appliedFilters.search) params.set('search', appliedFilters.search)
+      if (appliedFilters.status) params.set('status', appliedFilters.status)
+      if (appliedFilters.department_id) params.set('department_id', appliedFilters.department_id)
+      if (appliedFilters.priority) params.set('priority', appliedFilters.priority)
+      if (appliedFilters.category_id) params.set('category_id', appliedFilters.category_id)
+      if (appliedFilters.deadline_from) params.set('deadline_from', appliedFilters.deadline_from)
+      if (appliedFilters.deadline_to) params.set('deadline_to', appliedFilters.deadline_to)
+      if (appliedFilters.include_archived) params.set('include_archived', appliedFilters.include_archived)
+      const res = await fetch(`/api/documents/all-ids?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setSelectedIds(data.ids ?? [])
+    } catch { setSelectedIds(documents.map(d => String(d.id))) }
   }
 
   function toggleSelectOne(id: string) {
