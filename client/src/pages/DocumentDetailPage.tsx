@@ -39,7 +39,6 @@ interface DocumentDetail {
 function PreviewModal({ attachment, docId, onClose }: {
   attachment: Attachment; docId: string; onClose: () => void
 }) {
-  const { token } = useAuth()
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
   const [previewError, setPreviewError] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -48,7 +47,7 @@ function PreviewModal({ attachment, docId, onClose }: {
   const isPdf = attachment.mime_type === 'application/pdf'
 
   useEffect(() => {
-    const t = token ?? localStorage.getItem('noneco_token')
+    const t = localStorage.getItem('noneco_token')
     if (!t || !isImage && !isPdf) { setLoading(false); return }
     setLoading(true); setPreviewError(false)
     const url = `/api/documents/${docId}/attachments/${attachment.id}?preview=1`
@@ -59,12 +58,15 @@ function PreviewModal({ attachment, docId, onClose }: {
         objectUrlRef.current = url
         setObjectUrl(url)
       })
-      .catch(() => setPreviewError(true))
+      .catch((err) => {
+        setPreviewError(true)
+        console.warn('Preview failed:', err)
+      })
       .finally(() => setLoading(false))
     return () => {
       if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null }
     }
-  }, [token, docId, attachment.id, isImage, isPdf])
+  }, [docId, attachment.id, isImage, isPdf])
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="preview-title"
@@ -181,28 +183,28 @@ export default function DocumentDetailPage() {
   const handleDragEnd = useCallback(() => { setDragIdx(null); setOverIdx(null) }, [])
 
   const handleDrop = useCallback((dropIdx: number) => {
-    if (dragIdx === null || !doc) return
-    setDragIdx(null); setOverIdx(null)
-    const docId = doc.id
-    const tokenVal = token
-    setDoc(prev => {
-      if (!prev) return prev
-      const atts = [...prev.attachments]
-      const [moved] = atts.splice(dragIdx, 1)
-      atts.splice(dropIdx, 0, moved)
-      const orderedIds = atts.map(a => a.id)
-      const t = tokenVal ?? localStorage.getItem('noneco_token') ?? ''
-      fetch(`/api/documents/${docId}/attachments/reorder`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-        body: JSON.stringify({ ordered_ids: orderedIds }),
-      }).then(r => { if (!r.ok) throw new Error() }).catch(() => {
-        fetch(`/api/documents/${docId}`, { headers: { Authorization: `Bearer ${t}` } })
-          .then(r => r.json()).then(data => setDoc(data)).catch(() => {})
-      })
-      return { ...prev, attachments: atts }
-    })
-  }, [dragIdx, doc, token])
+     if (dragIdx === null || !doc) return
+     setDragIdx(null); setOverIdx(null)
+     const docId = doc.id
+     const tokenVal = token
+     setDoc(prev => {
+       if (!prev) return prev
+       const atts = [...prev.attachments]
+       const [moved] = atts.splice(dragIdx, 1)
+       atts.splice(dropIdx, 0, moved)
+       const orderedIds = atts.map(a => a.id)
+       const t = tokenVal ?? localStorage.getItem('noneco_token') ?? ''
+       fetch(`/api/documents/${docId}/attachments/reorder`, {
+         method: 'PATCH',
+         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+         body: JSON.stringify({ ordered_ids: orderedIds }),
+       }).then(r => { if (!r.ok) throw new Error() }).catch(() => {
+         fetch(`/api/documents/${docId}`, { headers: { Authorization: `Bearer ${t}` } })
+           .then(r => r.json()).then(data => setDoc(data)).catch(() => {})
+       })
+       return { ...prev, attachments: atts }
+     })
+   }, [doc])
 
   async function handleMarkComplete() {
     setCompleting(true)
@@ -594,26 +596,26 @@ export default function DocumentDetailPage() {
                               Preview
                             </button>
                           )}
-                          <button onClick={async () => {
-                            try {
-                              const t = token ?? localStorage.getItem('noneco_token') ?? ''
-                              const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
-                                headers: { Authorization: `Bearer ${t}` },
-                              })
-                              if (!res.ok) throw new Error()
-                              const blob = await res.blob()
-                              const url = URL.createObjectURL(blob)
-                              const a = document.createElement('a')
-                              a.href = url
-                              a.download = att.original_name
-                              document.body.appendChild(a)
-                              a.click()
-                              document.body.removeChild(a)
-                              URL.revokeObjectURL(url)
-                            } catch {
-                              showToast('Download failed.', 'error')
-                            }
-                          }}
+                           <button onClick={async () => {
+                             try {
+                               const t = token ?? localStorage.getItem('noneco_token') ?? ''
+                               const res = await fetch(`/api/documents/${doc.id}/attachments/${att.id}`, {
+                                 headers: { Authorization: `Bearer ${t}` },
+                               })
+                               if (!res.ok) throw new Error()
+                               const blob = await res.blob()
+                               const url = URL.createObjectURL(blob)
+                               const a = document.createElement('a')
+                               a.href = url
+                               a.download = att.original_name
+                               document.body.appendChild(a)
+                               a.click()
+                               document.body.removeChild(a)
+                               setTimeout(() => URL.revokeObjectURL(url), 100)
+                             } catch {
+                               showToast('Download failed.', 'error')
+                             }
+                           }}
                             className="min-h-[36px] px-3.5 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors dark:bg-stone-800 dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-700">
                             Download
                           </button>
