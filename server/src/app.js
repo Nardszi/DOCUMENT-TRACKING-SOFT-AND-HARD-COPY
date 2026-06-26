@@ -94,10 +94,11 @@ const authStrictLimiter = rateLimit({
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many authentication attempts. Please try again in 15 minutes.' } },
 })
 
-// Moderate: general auth routes — 20 per 15 min
+// Moderate: general auth routes — 50 per 15 min
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 50,
+  skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many attempts. Please try again later.' } },
