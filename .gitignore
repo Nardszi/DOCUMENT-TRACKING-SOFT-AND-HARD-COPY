@@ -32,6 +32,11 @@ Thumbs.db
 *.swp
 *.swo
 
+# Test output
+test-results.csv
+test-results-full.csv
+test-approvals.csv
+
 # Backups
 D:/noneco-backups/
 
