@@ -241,8 +241,8 @@ router.post('/bulk-complete', authenticate, async (req, res, next) => {
   const { document_ids } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
-  if (document_ids.length > 100)
-    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 100 items.' } })
+  if (document_ids.length > 1000)
+    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 1000 items.' } })
   const client = await pool.connect()
   let completed = 0, skipped = 0
   try {
@@ -269,8 +269,8 @@ router.post('/bulk-delete', authenticate, async (req, res, next) => {
   const { document_ids } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
-  if (document_ids.length > 100)
-    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 100 items.' } })
+  if (document_ids.length > 1000)
+    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 1000 items.' } })
   const client = await pool.connect()
   let deleted = 0
   try {
@@ -308,8 +308,8 @@ router.post('/bulk-set-priority', authenticate, async (req, res, next) => {
   const { document_ids, priority } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
-  if (document_ids.length > 100)
-    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 100 items.' } })
+  if (document_ids.length > 1000)
+    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 1000 items.' } })
   const normPri = priority ? priority.toLowerCase() : ''
   if (!VALID_PRIORITIES.includes(normPri))
     return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'priority must be one of: ' + VALID_PRIORITIES.join(', ') + '.' } })
@@ -337,8 +337,8 @@ router.post('/bulk-forward', authenticate, async (req, res, next) => {
   const { document_ids, to_department_id, routing_note } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
-  if (document_ids.length > 100)
-    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 100 items.' } })
+  if (document_ids.length > 1000)
+    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 1000 items.' } })
   if (!to_department_id)
     return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'to_department_id is required.' } })
   if (!routing_note || !routing_note.trim())
@@ -372,8 +372,8 @@ router.post('/bulk-return', authenticate, async (req, res, next) => {
   const { document_ids, reason } = req.body
   if (!Array.isArray(document_ids) || document_ids.length === 0)
     return res.status(400).json({ error: { code: 'BULK_EMPTY', message: 'document_ids must be a non-empty array.' } })
-  if (document_ids.length > 100)
-    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 100 items.' } })
+  if (document_ids.length > 1000)
+    return res.status(400).json({ error: { code: 'BULK_LIMIT_EXCEEDED', message: 'document_ids must not exceed 1000 items.' } })
   if (!reason || !reason.trim())
     return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'reason is required.' } })
   const client = await pool.connect()
