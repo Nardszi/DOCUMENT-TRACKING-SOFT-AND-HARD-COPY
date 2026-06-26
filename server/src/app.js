@@ -103,12 +103,13 @@ const authLimiter = rateLimit({
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many attempts. Please try again later.' } },
 })
 
-// Global: all API routes — 300 requests per 15 min per IP
+// Global: all API routes — 300 requests per 15 min per IP (skipped for localhost)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Rate limit exceeded. Please slow down.' } },
 })
 
