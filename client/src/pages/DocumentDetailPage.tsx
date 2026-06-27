@@ -39,6 +39,7 @@ interface DocumentDetail {
 function PreviewModal({ attachment, docId, onClose }: {
   attachment: Attachment; docId: string; onClose: () => void
 }) {
+  const { token } = useAuth()
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
   const [previewError, setPreviewError] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -47,7 +48,7 @@ function PreviewModal({ attachment, docId, onClose }: {
   const isPdf = attachment.mime_type === 'application/pdf'
 
   useEffect(() => {
-    const t = localStorage.getItem('noneco_token')
+    const t = token ?? localStorage.getItem('noneco_token')
     if (!t || !isImage && !isPdf) { setLoading(false); return }
     setLoading(true); setPreviewError(false)
     const url = `/api/documents/${docId}/attachments/${attachment.id}?preview=1`
@@ -66,7 +67,7 @@ function PreviewModal({ attachment, docId, onClose }: {
     return () => {
       if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null }
     }
-  }, [docId, attachment.id, isImage, isPdf])
+  }, [token, docId, attachment.id, isImage, isPdf])
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="preview-title"
@@ -611,7 +612,7 @@ export default function DocumentDetailPage() {
                                document.body.appendChild(a)
                                a.click()
                                document.body.removeChild(a)
-                               setTimeout(() => URL.revokeObjectURL(url), 100)
+                               setTimeout(() => URL.revokeObjectURL(url), 2000)
                              } catch {
                                showToast('Download failed.', 'error')
                              }
