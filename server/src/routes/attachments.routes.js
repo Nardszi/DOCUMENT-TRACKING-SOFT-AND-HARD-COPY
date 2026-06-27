@@ -257,9 +257,17 @@ router.patch('/:documentId/attachments/reorder', authenticate, async (req, res, 
 
     // Only the uploader or admin can reorder
     const attResult = await pool.query(
-      'SELECT uploaded_by FROM attachments WHERE document_id = $1',
+      'SELECT id, uploaded_by FROM attachments WHERE document_id = $1',
       [documentId]
     )
+    if (attResult.rows.length !== ordered_ids.length) {
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'ordered_ids must match all attachments for this document.' } })
+    }
+    const dbIds = new Set(attResult.rows.map(a => String(a.id)))
+    const providedIds = new Set(ordered_ids.map(String))
+    if (!providedIds.size || ![...providedIds].every(id => dbIds.has(id))) {
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'ordered_ids must match existing attachments for this document.' } })
+    }
     const isAdmin = req.user.role === 'admin'
     const isUploader = attResult.rows.every(a => String(a.uploaded_by) === String(req.user.id))
     if (!isAdmin && !isUploader) {
@@ -295,6 +303,16 @@ router.patch('/:documentId/attachments/reorder', authenticate, async (req, res, 
 router.delete('/:documentId/attachments/:attachId', authenticate, async (req, res, next) => {
   try {
     const { documentId, attachId } = req.params
+
+    // Scope check - verify document exists and user has access
+    const scope = buildScopeClause(req.user, 2)
+    const docResult = await pool.query(
+      `SELECT d.id FROM documents d WHERE d.id = $1 AND ${scope.clause}`,
+      [documentId, ...scope.params]
+    )
+    if (!docResult.rows.length) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found.' } })
+    }
 
     const attResult = await pool.query(
       'SELECT id, storage_path, uploaded_by FROM attachments WHERE id = $1 AND document_id = $2',

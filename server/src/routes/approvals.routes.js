@@ -100,6 +100,12 @@ router.patch('/flows/:flowId/steps/reorder', authenticate, requireAdmin, async (
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
+      // Use negative step_order first to avoid unique constraint violation
+      for (let i = 0; i < ordered_ids.length; i++) {
+        await client.query(
+          'UPDATE approval_flow_steps SET step_order = $1 WHERE id = $2 AND flow_id = $3',
+          [-(i + 1), ordered_ids[i], req.params.flowId])
+      }
       for (let i = 0; i < ordered_ids.length; i++) {
         await client.query(
           'UPDATE approval_flow_steps SET step_order = $1 WHERE id = $2 AND flow_id = $3',
@@ -107,22 +113,8 @@ router.patch('/flows/:flowId/steps/reorder', authenticate, requireAdmin, async (
       }
       await client.query('COMMIT')
     } catch (err) {
-      if (err.code === '23505') {
-        await client.query('ROLLBACK')
-        for (let i = 0; i < ordered_ids.length; i++) {
-          await client.query(
-            'UPDATE approval_flow_steps SET step_order = $1 WHERE id = $2 AND flow_id = $3',
-            [-(i + 1), ordered_ids[i], req.params.flowId])
-        }
-        for (let i = 0; i < ordered_ids.length; i++) {
-          await client.query(
-            'UPDATE approval_flow_steps SET step_order = $1 WHERE id = $2 AND flow_id = $3',
-            [i + 1, ordered_ids[i], req.params.flowId])
-        }
-      } else {
-        await client.query('ROLLBACK')
-        throw err
-      }
+      await client.query('ROLLBACK')
+      throw err
     } finally { client.release() }
     res.json({ message: 'Steps reordered.' })
   } catch (err) { next(err) }
@@ -342,33 +334,47 @@ router.post('/bulk-approve', authenticate, async (req, res, next) => {
     if (approval_ids.length > 50)
       return res.status(400).json({ error: { code: 'BULK_LIMIT', message: 'Cannot approve more than 50 items at once.' } })
 
-    let approved = 0; let skipped = 0
+    // Validate all approval_ids exist and are pending
+    const placeholders = approval_ids.map((_, i) => `$${i + 1}`).join(',')
+    const checkResult = await pool.query(
+      `SELECT da.id, da.document_id, da.status, d.status AS doc_status
+       FROM document_approvals da
+       JOIN documents d ON d.id = da.document_id
+       WHERE da.id IN (${placeholders})`,
+      approval_ids
+    )
+    if (checkResult.rows.length !== approval_ids.length) {
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Some approval IDs not found.' } })
+    }
+
+    const invalidApprovals = checkResult.rows.filter(r => r.status !== 'pending' || r.doc_status === 'completed')
+    if (invalidApprovals.length > 0) {
+      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Some approvals are not pending or documents are completed.' } })
+    }
+
+    let approved = 0
     const client = await pool.connect()
     try {
       await client.query('BEGIN')
       for (const apId of approval_ids) {
-        const apResult = await client.query(
-          'SELECT da.*, d.status AS doc_status FROM document_approvals da JOIN documents d ON d.id = da.document_id WHERE da.id = $1', [apId])
-        if (!apResult.rows.length) { skipped++; continue }
-        const ap = apResult.rows[0]
-        if (ap.status !== 'pending' || ap.doc_status === 'completed') { skipped++; continue }
-        const isDeptMatch = ap.assigned_department_id ? String(req.user.departmentId) === String(ap.assigned_department_id) : true
-        const isUserMatch = ap.assigned_to ? String(req.user.id) === String(ap.assigned_to) : true
-        const isAdmin = req.user.role === 'admin'
-        if (!isAdmin && (!isDeptMatch || !isUserMatch)) { skipped++; continue }
         await client.query(
           "UPDATE document_approvals SET status = 'approved', comment = $1, decided_by = $2, decided_at = NOW() WHERE id = $3",
           [comment || null, req.user.id, apId])
         approved++
-        const remaining = await client.query(
-          "SELECT id FROM document_approvals WHERE document_id = $1 AND status = 'pending' LIMIT 1", [ap.document_id])
-        if (!remaining.rows.length) {
-          recordAudit(pool, req.user.id, 'approval.all_approved', 'document', ap.document_id, { document_id: ap.document_id })
+        // Find the document_id for this approval
+        const ap = checkResult.rows.find(r => r.id === apId)
+        if (ap) {
+          const remainingDoc = await client.query(
+            "SELECT id FROM document_approvals WHERE document_id = $1 AND status = 'pending' LIMIT 1",
+            [ap.document_id])
+          if (!remainingDoc.rows.length) {
+            recordAudit(pool, req.user.id, 'approval.all_approved', 'document', ap.document_id, { document_id: ap.document_id })
+          }
         }
       }
       await client.query('COMMIT')
     } catch (err) { await client.query('ROLLBACK'); throw err } finally { client.release() }
-    res.json({ approved, skipped })
+    res.json({ approved, skipped: 0 })
   } catch (err) { next(err) }
 })
 
