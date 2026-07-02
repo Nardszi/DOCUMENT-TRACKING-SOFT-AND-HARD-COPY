@@ -141,6 +141,104 @@ class MinIOStorageAdapter {
 }
 
 // ---------------------------------------------------------------------------
+// SupabaseStorageAdapter — persistent cloud storage for Vercel deployment
+// ---------------------------------------------------------------------------
+class SupabaseStorageAdapter {
+  constructor() {
+    const url = process.env.SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !serviceKey) {
+      throw new Error('SupabaseStorageAdapter requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars')
+    }
+    // Lazy import to avoid adding @supabase/supabase-js to bundle when not used
+    this._clientPromise = import('@supabase/supabase-js').then(({ createClient }) => {
+      return createClient(url, serviceKey, { auth: { persistSession: false } })
+    })
+    this.bucket = process.env.SUPABASE_STORAGE_BUCKET || 'attachments'
+  }
+
+  async _getClient() {
+    return this._clientPromise
+  }
+
+  /**
+   * Upload a buffer to Supabase Storage.
+   * Stores at {bucket}/{year}/{month}/{uuid}.{ext}
+   * @param {Buffer} buffer
+   * @param {string} originalName
+   * @param {string} mimeType
+   * @returns {Promise<string>} storage path (year/month/uuid.ext)
+   */
+  async save(buffer, originalName, mimeType) {
+    const client = await this._getClient()
+    const now = new Date()
+    const year = now.getFullYear().toString()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const ext = path.extname(originalName).toLowerCase() || ''
+    const storagePath = `${year}/${month}/${uuidv4()}${ext}`
+
+    const { error } = await client.storage
+      .from(this.bucket)
+      .upload(storagePath, buffer, { contentType: mimeType, upsert: false })
+
+    if (error) {
+      throw new Error(`Supabase upload failed: ${error.message}`)
+    }
+
+    return storagePath
+  }
+
+  /**
+   * Download a file from Supabase Storage as a Buffer.
+   * @param {string} storagePath
+   * @returns {Promise<Buffer>}
+   */
+  async get(storagePath) {
+    const client = await this._getClient()
+    const { data, error } = await client.storage.from(this.bucket).download(storagePath)
+    if (error) throw new Error(`Supabase download failed: ${error.message}`)
+    const arrayBuffer = await data.arrayBuffer()
+    return Buffer.from(arrayBuffer)
+  }
+
+  /**
+   * Delete a file from Supabase Storage.
+   * @param {string} storagePath
+   * @returns {Promise<void>}
+   */
+  async delete(storagePath) {
+    const client = await this._getClient()
+    const { error } = await client.storage.from(this.bucket).remove([storagePath])
+    if (error) throw new Error(`Supabase delete failed: ${error.message}`)
+  }
+
+  /**
+   * Get a signed URL for the file (valid for 1 hour).
+   * @param {string} storagePath
+   * @returns {Promise<string>} signed URL
+   */
+  async getSignedUrl(storagePath) {
+    const client = await this._getClient()
+    const { data, error } = await client.storage
+      .from(this.bucket)
+      .createSignedUrl(storagePath, 3600)
+    if (error) throw new Error(`Supabase signed URL failed: ${error.message}`)
+    return data.signedUrl
+  }
+
+  /**
+   * Get a public URL (if bucket is public).
+   * @param {string} storagePath
+   * @returns {string} public URL
+   */
+  getPublicUrl(storagePath) {
+    // Note: this is synchronous and requires the bucket to be public
+    // For private buckets, use getSignedUrl() instead
+    return `https://${process.env.SUPABASE_URL.replace('https://', '')}/storage/v1/object/public/${this.bucket}/${storagePath}`
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -148,15 +246,18 @@ let _adapter = null
 
 /**
  * Returns the configured storage adapter (singleton).
- * Controlled by STORAGE_BACKEND env var: 'local' (default) | 'minio'
- * @returns {LocalStorageAdapter | MinIOStorageAdapter}
+ * Controlled by STORAGE_BACKEND env var: 'local' (default) | 'minio' | 'supabase'
+ * @returns {LocalStorageAdapter | MinIOStorageAdapter | SupabaseStorageAdapter}
  */
 export function getStorageAdapter() {
   if (_adapter) return _adapter
 
   const backend = (process.env.STORAGE_BACKEND || 'local').toLowerCase()
 
-  if (backend === 'minio') {
+  if (backend === 'supabase') {
+    console.info('[storage] Using Supabase Storage backend')
+    _adapter = new SupabaseStorageAdapter()
+  } else if (backend === 'minio') {
     console.info('[storage] Using MinIO storage backend')
     _adapter = new MinIOStorageAdapter()
   } else {

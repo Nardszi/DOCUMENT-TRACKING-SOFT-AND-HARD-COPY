@@ -209,9 +209,7 @@ router.get('/:documentId/attachments/:attachId', authenticate, async (req, res, 
 
     const att = attResult.rows[0]
 
-    // Stream file to client
     const adapter = getStorageAdapter()
-    const stream = adapter.getStream(att.storage_path)
 
     res.setHeader('Content-Type', att.mime_type)
     res.setHeader(
@@ -221,13 +219,20 @@ router.get('/:documentId/attachments/:attachId', authenticate, async (req, res, 
         : `attachment; filename="${encodeURIComponent(att.original_name)}"`
     )
 
-    stream.on('error', (err) => {
-      if (!res.headersSent) {
-        next(err)
-      }
-    })
-
-    stream.pipe(res)
+    // Use stream for local/MinIO, buffer for Supabase
+    if (typeof adapter.getStream === 'function') {
+      const stream = adapter.getStream(att.storage_path)
+      stream.on('error', (err) => {
+        if (!res.headersSent) {
+          next(err)
+        }
+      })
+      stream.pipe(res)
+    } else {
+      const buffer = await adapter.get(att.storage_path)
+      res.setHeader('Content-Length', buffer.length)
+      res.send(buffer)
+    }
   } catch (err) {
     next(err)
   }
